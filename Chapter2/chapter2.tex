@@ -1,0 +1,93 @@
+%!TEX root = ../thesis.tex
+%*******************************************************************************
+%****************************** Second Chapter *********************************
+%*******************************************************************************
+
+\chapter{Algorithm Design}
+
+\ifpdf
+    \graphicspath{{Chapter2/Figs/Raster/}{Chapter2/Figs/PDF/}{Chapter2/Figs/}}
+\else
+    \graphicspath{{Chapter2/Figs/Vector/}{Chapter2/Figs/}}
+\fi
+
+\section{gMatrix}
+
+\section{gMatrix with partitioning}
+
+We implement the idea of partitioning from \cite{DBLP} onto the gMatrix.
+
+A data sample is needed to perform the partitioning. In the experiment, we perform reservoir sampling on the original dataset to obtain the data sample. The size of the data sample is 5\% of the original size of the dataset.
+
+The gMatrix is divided into partitions. Each partition is associated with a set of source vertices. Each source vertex is then only associated with exactly one partition. Edge $(u,v)$ is stored in one of the partitions if and only if $u$ is in the set of source vertices associated with the partition. The idea of the partitioning is to group edges with similar frequencies in the same partition to improve sketch accuracy.
+
+The statistical variances of the frequencies of edges (from the data sample) with common source vertex are computed. We select source vertices which have variances not exceeding a certain threshold (variance of 100 is used in the experiment). An outlier partition is reserved to store frequencies of edges in the dataset whose source vertex is either not found in the data sample or are not suitable for the purpose of the partitioning, i.e. the statistical variance of the frequencies of all edges with the same source vertex in the data sample is exceeding the threshold.
+
+Determining the right outlier partition size is very critical for the effectiveness of the partitioning, even more so than in partitioning the gSketch\cite{DBLP}. We determine the outlier partition size ratio by estimating the outlier ratio from the data sample. We do so by first splitting the data sample into two; the first consists of 90\% of the whole data sample, and the other split consists of the rest; then, after selecting the suitable source vertices from the first split, the ratio of outliers in the second split is computed, which is essentially the ratio of the number of source vertices in the split not found among the previously-selected source vertices, to the size of the split. Then, it is assigned as the outlier partition size ratio.
+
+The partitioning algorithm is no different than in \cite{DBLP}. 
+
+\begin{algorithm}
+\caption{Sketch-Partitioning (Data Sample: $D$)}\label{euclid}
+\begin{algorithmic}[1]
+
+\State Create a root node $S$ of the partitioning tree as an
+active node;
+\State $S.sides \gets h$;
+\State $S.depth \gets d$;
+\State Create an empty list $L$ containing $S$ only;
+\While{$L \neq \varnothing$ }
+\State Partition active node $S \in L$ based on D into $S_1$, $S_2$ by minimizing overall relative error;
+\State $S_1.rows = S_2.rows = \frac{S.rows}{2};$
+\State $L \gets L \setminus \left \{ S \right \};$
+\For{$i \in \left[ 1..2 \right]$}
+    \If{$(S_i.sides >= w_0)$ and ($\sum_{v \in V_S} \tilde{d}(v) \leqslant C \cdot S_i.sides$)}
+    
+    \State $L \gets L \cup S_i$;
+    \Else
+    \State Construct the localized sketch $S_i$;
+    
+    \EndIf
+\EndFor
+\EndWhile
+
+\end{algorithmic}
+\end{algorithm}
+
+The suitable source vertices are sorted based on non-decreasing average frequency of edges emanating from them $f_v/d_v$ in the data sample, where $f_v$ is the sum of frequencies of all edges in the data sample with source vertex $v$, and $d_v$ is the out-degree of vertex $v$. The sorted source vertex set is then recursively split into two, and each split minimizes the overall relative error E. \[E = \sum_{v \in S_1} \frac{d_v \cdot F_{S_1}}{f_v / d_v} + \sum_{v \in S_2} \frac{d_v \cdot F_{S_1}}{f_v / d_v}\]
+
+The recursion stops when either the size of the partition becomes small enough, i.e. the number of rows is less than a user-specified threshold $r_0$ (which is fixed at 100 in this experiment), or when the probability of collision in any particular cell in the sketch can be bounded above by a user-speficied threshold $C$, which is the case when the density of distinct edges, $\sum_{v \in s} d_v/(S.rows \cdot S.cols)$, is also bounded above by $C$, as proven in \cite{DBLP}.
+
+\section{Analysis}
+
+Let $S$ be a gMatrix of size $h\times h\times w$. Let $U$ be a set of source vertices in the data sample. Suppose the partitioning recursion is only performed for one step, i.e. the gMatrix $S$ is only partitioned into two. Let $S_1$ and $S_2$ be the two partitions, with corresponding source vertex set $U_1$ and $U_2$. Note that $U_1$ and $U_2$ are disjoint and $U_1 \cup U_2 = U$. Each partition is now of size $\frac{h}{2}\times h\times w$.
+
+We now observe the probabilistic accuracy guarantee of the produced new partition $S_i$.
+
+Let $L_i$ be the total frequency of edges $(u,v)$ received so far in partition $S_i$, i.e. $u \in U_i$. Let $(x,y)$ be an edge in $S_i$. Let $A_i(y)$ be the sum of the frequencies of edges $(u,v)$ on $S_i$ such that $v=y$. Let $B_i(x)$ be the sum of the frequencies of edges $(u,v) on S_i$ such that $u=x$.
+
+\paragraph{Case 1} Consider spurious edges $(u,v)$ for which $u \neq x$ and $v \neq y$. Any of such edges are equally likely to be mapped into any cell in $S_1$, and the probability to be mapped into any particular cell is $\frac{1}{h \cdot \frac{h}{2}} = \frac{2}{h^2}$. Let $X_k$ be a random variable that represents the number of such spurious edges that are mapped into $(g_k(x),g_k(y),k)$. Therefore, $E[X_k] = \frac{2L_i}{h^2}$. Then, by Markov inequality,
+
+\begin{equation} \label{efreq1}
+P(X_k > L_i \cdot \epsilon) \leq \frac{E[X_k]}{L_i \cdot \epsilon} = \frac{2}{h^2\epsilon}
+\end{equation}
+
+\paragraph{Case 2} Consider spurious edges $(u,v)$ for which $u \neq x$ but $v=y$. The probability that any of such edges to be mapped into $(g_k(x),g_k(y),k)$ in $S_1$ is $\frac{1}{\frac{h}{2}} = \frac{2}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2A_i(y)}{h}$. By Markov inequality,
+
+\begin{equation} \label{efreq2}
+P(Y_k > h A_i(y) \cdot \epsilon) \leq \frac{E[Y_k]}{h A_i(y) \cdot \epsilon} = \frac{2}{h^2\epsilon}
+\end{equation}
+
+\paragraph{Case 3} Consider spurious edges $(u,v)$ for which $u=x$ but $v \neq y$. The probability that any of such edges to be mapped into $(g_k(x),g_k(y),k)$ in $S_1$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_i(x)}{h}$. By Markov inequality,
+
+\begin{equation} \label{efreq3}
+P(Z_k > h B_i(x) \cdot \epsilon) \leq \frac{E[Z_k]}{h B_i(x) \cdot \epsilon} = \frac{1}{h^2\epsilon}
+\end{equation}
+
+Combining equations \ref{efreq1}, \ref{efreq2}, \ref{efreq3},
+\begin{equation}
+  P(X_k + Y_k + Z_k > L_i \cdot \epsilon + A_i(y) \cdot h \cdot \epsilon + B_i(x) \cdot h \cdot \epsilon) \leq \frac{5}{h^2\cdot\epsilon}
+\end{equation}
+
+The probability that the condition holds for all $k \in (1,w)$ is at most $(\frac{5}{h^2\cdot\epsilon})^w$.
+
