@@ -1011,7 +1011,7 @@ wish to left align your text}
 % "Acknowledgements" label at the top of the page.
 
 \newenvironment{acknowledgements}{
-\clearpage
+\cleardoublepage
 \setsinglecolumn
 \chapter*{\centering \Large Acknowledgements}
 \thispagestyle{empty}
