@@ -14,23 +14,32 @@
 
 \section{Preliminaries}
 
-\subsection{CountMin Sketch}
+\subsection{Count-Min}
+The Count-Min\cite{cormode2005improved} sketch is a data-stream sketch that is used to approximate frequency counts of items in a data stream. It consists of a 2D array of size $h \times w$ and uses $w$ many hash functions for the approximation that each maps onto $[0,h-1]$.
 
-\subsection{gSketch}
+To store the frequency of an item $x$, it first maps $x$ onto $w$ different values $g_k(x) \in [0,h-1]$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(x)^{th}$ row, $k^{th}$ column is incremented by the frequency of $x$.
+
+Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column be denoted by $f(i,j)$. Querying the frequency estimate of an item $x$ is as simple as finding $min\{f(g_k(x),k)|k \in \{1..w\}\}$.
 
 \subsection{gMatrix}
+The gMatrix\cite{khan} is a sketch that is similar to the Count-Min sketch, except that it consists of a 3D array instead of a 2D one and specializes on graph streams.
 
-\section{Partitioning Scheme}
+To store the frequency of an edge $(i,j)$, it first maps $i$ and $j$ onto $w$ different values $g_k(i)$ and $g_k(j)$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(i)^{th}$ row, $g_k(j)^{th}$ column, and $k^{th}$ layer is incremented by the frequency of the edge $(i,j)$.
 
-We implement the idea of partitioning from \cite{DBLP} onto the gMatrix.
+Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column, and $k^{th}$ layer be denoted by $f(i,j,k)$. Querying the frequency estimate of an edge $(i,j)$ is as simple as finding $min\{f(g_k(i),g_k(j),k)|k \in \{1..w\}\}$.
 
-A data sample is needed to perform the partitioning. In the experiment, we perform reservoir sampling on the original dataset to obtain the data sample. The size of the data sample is 5\% of the original size of the dataset.
+\subsection{gSketch}
+The gSketch\cite{DBLP} is a partitioning method performed onto a graph-stream-sketch prior to being populated with the stream. The method is based on the source vertex set of a sample stream.
 
-The gMatrix is divided into partitions. Each partition is associated with a set of source vertices. Each source vertex is then only associated with exactly one partition. Edge $(u,v)$ is stored in one of the partitions if and only if $u$ is in the set of source vertices associated with the partition. The idea of the partitioning is to group edges with similar frequencies in the same partition to improve sketch accuracy.
+\section{Partitioning Scheme for gMatrix}
 
-The statistical variances of the frequencies of edges (from the data sample) with common source vertex are computed. We select source vertices which have variances not exceeding a certain threshold (variance of 100 is used in the experiment). An outlier partition is reserved to store frequencies of edges in the dataset whose source vertex is either not found in the data sample or are not suitable for the purpose of the partitioning, i.e. the statistical variance of the frequencies of all edges with the same source vertex in the data sample is exceeding the threshold.
+Partitioning\cite{DBLP} is shown to improve Count-Min's\cite{DBLP}\cite{cormode2005improved} accuracy. The idea of the partitioning is to group edges with similar frequencies in the same partition to improve sketch accuracy. A data sample of the graph stream is needed to perform the partitioning.
 
-Determining the right outlier partition size is very critical for the effectiveness of the partitioning, even more so than in partitioning the gSketch\cite{DBLP}. We determine the outlier partition size ratio by estimating the outlier ratio from the data sample. We do so by first splitting the data sample into two; the first consists of 90\% of the whole data sample, and the other split consists of the rest; then, after selecting the suitable source vertices from the first split, the ratio of outliers in the second split is computed, which is essentially the ratio of the number of source vertices in the split not found among the previously-selected source vertices, to the size of the split. Then, it is assigned as the outlier partition size ratio.
+The partitioning scheme can also be applied onto the gMatrix. After partitioning, each of the resulting partitions is associated with a set of source vertices. Each source vertex is then only associated with exactly one partition. Edge $(u,v)$ is stored in partition $p$ if and only if $u$ is in the set of source vertices associated with the partition $p$. An outlier partition is reserved to store frequencies of edges in the dataset whose source node is not associated with any of the resulting partitions.
+
+We propose two new optimizations to the partitioning scheme. The first is that since the purpose of the partitioning is to group edges with similar frequencies together, we do not need to use all source nodes from the data sample for partitioning. In particular, we can compute the statistical variances of the frequencies of edges from the data sample with common source node $i$ and filter edges with source nodes for which the variance is exceeding a certain threshold.
+
+Another observation is that the right outlier partition size can be estimated by computing the outlier ratio from the data sample. We do so by first splitting the data sample into two, then, after selecting the suitable source nodes from the first split, the ratio of outliers in the second split is computed, which is essentially the ratio of the number of source nodes in the split not found among the previously-selected source nodes, to the size of the split. Then, it is assigned as the outlier partition size ratio.
 
 The partitioning algorithm is no different than in \cite{DBLP}. 
 
@@ -61,14 +70,14 @@ active node;
 \end{algorithmic}
 \end{algorithm}
 
-The suitable source vertices are sorted based on non-decreasing average frequency of edges emanating from them $f_v/d_v$ in the data sample, where $f_v$ is the sum of frequencies of all edges in the data sample with source vertex $v$, and $d_v$ is the out-degree of vertex $v$. The sorted source vertex set is then recursively split into two, and each split minimizes the overall relative error E. \[E = \sum_{v \in S_1} \frac{d_v \cdot F_{S_1}}{f_v / d_v} + \sum_{v \in S_2} \frac{d_v \cdot F_{S_1}}{f_v / d_v}\]
+The selected source nodes are sorted based on non-decreasing average frequency of edges emanating from them $f_v/d_v$ in the data sample, where $f_v$ is the sum of frequencies of all edges in the data sample with source vertex $v$, and $d_v$ is the out-degree of vertex $v$. The sorted source vertex set is then recursively split into two, and each split minimizes the overall relative error E. \[E = \sum_{v \in S_1} \frac{d_v \cdot F_{S_1}}{f_v / d_v} + \sum_{v \in S_2} \frac{d_v \cdot F_{S_1}}{f_v / d_v}\]
 
 The recursion stops when either the size of the partition becomes small enough, i.e. the number of rows is less than a user-specified threshold $r_0$ (which is fixed at 100 in this experiment), or when the probability of collision in any particular cell in the sketch can be bounded above by a user-speficied threshold $C$, which is the case when the density of distinct edges, $\sum_{v \in s} d_v/(S.rows \cdot S.cols)$, is also bounded above by $C$, as proven in \cite{DBLP}.
 
+Next, we observe how gMatrix answers various query types after being partitioned.
 
-\section{Edge Frequency Queries}
+\subsection{Edge Frequency Query Estimation}
 
-\subsubsection{Description}
 Since there is only one partition associated with each source vertex, to retrieve the estimated frequency for an arbitrary edge $(i,j)$:
 
 \begin{enumerate}
@@ -76,14 +85,12 @@ Since there is only one partition associated with each source vertex, to retriev
   \item Find the minimum of $V_P(g_k(i),g_k(j),k)$ for all $k \in \{1..w\}$, where $V_P$ is the value of the cell in the partition $p$. 
 \end{enumerate}
 
-\subsubsection{Analysis}
-
 Since obtaining the frequency estimate of an arbitrary edge only depends on the partition containing the edge, we observe how each partition answers the query.
 
 Let $S$ be a gMatrix of size $h\times h\times w$. Suppose the partitioning step is performed already. Note that any of the produced partitions will have number of rows equal to $\frac{h}{2^d}$ where $d$ is the depth of the recursion in which the partition is built. Let $p$ be an arbitrary partition. The size of $p$ is $\frac{h}{2^d}\times h\times w$.
 
 \begin{theorem}
-\label{efreqguarantee}
+\label{thm:efreqguarantee}
 Let $(i,j)$ be an edge in $p$, $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
   
   \[
@@ -140,11 +147,8 @@ Therefore,
 \end{remarks}
 
 
-\section{Heavy-hitter Edge Queries}
-\subsubsection{Description}
+\subsection{Heavy-hitter Edge Query Estimation}
 Obtaining edges with frequencies at least $F$ in the graph stream is accomplished by first obtaining a set of edges with frequencies at least $F$ from each partition in the gMatrix and then taking the union of each of them.
-
-\subsubsection{Analysis}
 
 \begin{theorem}
 Let $(i,j)$ be an edge and $p$ be the partition associated with $i$. Let $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
@@ -192,13 +196,12 @@ Therefore,
 
 \end{proof}
 
-\section{Node Aggregate-Frequency Queries}
+\subsection{Node Aggregate-Frequency Query Estimation}
 
 The queries ask for the sum of frequencies of all edges incoming to / outgoing from a node $i$. Due to partitioning based on source nodes, source-node aggregate-frequency queries and destination-node aggregate-frequency queries are computed differently.
 
-\subsection{Source-Node Aggregate-Frequency Queries}
+\subsubsection{Source-Node Aggregate-Frequency Query Estimation}
 
-\subsubsection{Description}
 The task of finding the aggregate frequency of a source node $i$ is broken down to:
 
 \begin{enumerate}
@@ -206,9 +209,9 @@ The task of finding the aggregate frequency of a source node $i$ is broken down 
 \item Finding the aggregate frequency of the source node $i$ at the partition $p$
 \end{enumerate}
 
-\subsubsection{Analysis}
 
 \begin{theorem}
+\label{thm:agg1}
 Let $(i,j)$ be an edge and $p$ be the partition associated with $i$. Let $Q_{agg}^{+}(i)$ be the true aggregate-frequency of source-node $i$, and $\overline{Q_{agg}^{+}(i)}$ be its estimated aggregate-frequency. Let $p$ be a partition associated with $i$ and $L_p$ be the total frequency of edges received so far on $p$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
 \[
 P(Q_{agg}^{+}(i) \leq \overline{Q_{agg}^{+}(i)} \leq Q_{agg}^{+}(i) + L_p \cdot \epsilon) \geq 1-(\frac{2^d}{h\cdot\epsilon})^w
@@ -241,9 +244,8 @@ Therefore,
 As the depth $d$ of the recursion in which the partition is built increases, the probability of the accuracy guarantee decreases, but in ideal partitioning, the accuracy guarantee itself gets better as $L_p$ gets reduced.
 \end{remarks}
 
-\subsection{Destination-Node Aggregate-Frequency Queries}
+\subsubsection{Destination-Node Aggregate-Frequency Query Estimation}
 
-\subsubsection{Description}
 The task of finding the aggregate-frequency of a destination node $j$ is broken down to:
 
 \begin{enumerate}
@@ -251,9 +253,8 @@ The task of finding the aggregate-frequency of a destination node $j$ is broken 
 \item Computing the sum of all of the computed destination-node aggregate-frequencies together
 \end{enumerate}
 
-\subsubsection{Analysis}
 \begin{theorem}
-\label{agg2}
+\label{thm:agg2}
   Let $Q_{agg}^{-}(j)$ be the true aggregate-frequency of destination-node $j$, and $\overline{Q_{agg}^{-}(j)}$ be the estimated aggregate-frequency. Let $L$ be the total frequency of edges received so far. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
   
   \[

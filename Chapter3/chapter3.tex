@@ -13,6 +13,13 @@
 
 We compare the accuracy of gMatrix without partitioning and with partitioning for answering edge frequency estimation queries.
 
+\section{Implementation}
+In this experiment, the data sample needed for partitioning is obtained by performing reservoir sampling\cite{DBLP} on the graph stream. Each data sample consists of 5\% random edges from the graph stream.
+
+Statistical threshold of 100 is used to filter source nodes of the data sample.
+
+For outlier ratio estimation, data sample is split by 90:10 ratio.
+
 \section{System Description}
 The code is implemented in C++ and experiments were performed on Intel Xeon 2GHz 16GB server.
 
@@ -720,9 +727,9 @@ Figures \ref{fig:EE1} and \ref{fig:EE2} show that after partitioning, the sketch
 \clearpage
 \subsection{Node Aggregate-Frequency Estimation}
 
-On the Friendster dataset, both observed errors of source and destination node aggregate-frequency estimations are higher after partitioning as can be seen on figures \ref{fig:agg1} and \ref{fig:agg2}.
+On the Twitter and IP-Trace dataset, the observed error of source-node aggregate-frequency estimations is lower after partitioning as seen on figure \ref{fig:agg3} and figure \ref{fig:agg5}. However, on the Friendster dataset, figure \ref{fig:agg1} shows that it is higher after partitioning, which is unexpected. According to Theorem \ref{thm:agg1}, an ideal partitioning scheme improves accuracy guarantee, although reduces the probability of the guarantee. We speculate that the higher observed error on the Friendster dataset is due to the high-skewness of the dataset, which makes the partitioning scheme less effective.
 
-On the IP-Trace dataset, the observed error of source-node aggregate-frequency estimations is lower after partitioning as seen on figure \ref{fig:agg3}. However, according to \ref{fig:agg4}, the observed error is higher after partitioning in destination-node aggregate-frequency estimations, although it is still relatively very low.
+Figures \ref{fig:agg2}, \ref{fig:agg4} and \ref{fig:agg6} show the observed error is higher after partitioning in destination-node aggregate-frequency estimations, which is expected since Theorem \ref{thm:agg2} shows that partitioning does not improve the accuracy guarantee itself and only worsens the probability of the guarantee.
 
 \begin{figure}[!htbp]
 \centering
@@ -787,6 +794,57 @@ On the IP-Trace dataset, the observed error of source-node aggregate-frequency e
     ]
       \addplot 
 	  coordinates {
+        (0, 9.104631)
+      };
+      \addplot 
+	  coordinates {
+        (0, 10.501604)
+      };
+      \legend{gMatrix with Partitioning,gMatrix without Partitioning}
+  \end{axis}
+\end{tikzpicture}
+\caption{Observed error of source-node aggregate-frequency queries on top-500 node aggregate-frequencies of the Twitter dataset} \label{fig:agg3}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      ybar,
+      enlargelimits=0.15,
+      legend style={at={(0.5,-0.1)},anchor=north,legend columns=-1},
+      ylabel={Observed error},
+      width=7cm,
+      xticklabels={,,}
+    ]
+      \addplot 
+	  coordinates {
+        (0, 9.279370)
+      };
+      \addplot 
+	  coordinates {
+        (0, 7.038425)
+      };
+      \legend{gMatrix with Partitioning,gMatrix without Partitioning}
+  \end{axis}
+\end{tikzpicture}
+\caption{Observed error of destination-node aggregate-frequency queries on top-500 node aggregate-frequencies of the Twitter dataset} \label{fig:agg4}
+\end{figure}
+
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      ybar,
+      enlargelimits=0.15,
+      legend style={at={(0.5,-0.1)},anchor=north,legend columns=-1},
+      ylabel={Observed error},
+      width=7cm,
+      xticklabels={,,}
+    ]
+      \addplot 
+	  coordinates {
         (0, 0.124063)
       };
       \addplot 
@@ -796,7 +854,7 @@ On the IP-Trace dataset, the observed error of source-node aggregate-frequency e
       \legend{gMatrix with Partitioning,gMatrix without Partitioning}
   \end{axis}
 \end{tikzpicture}
-\caption{Observed error of source-node aggregate-frequency queries on top-500 node aggregate-frequencies of the IP-Trace dataset} \label{fig:agg3}
+\caption{Observed error of source-node aggregate-frequency queries on top-500 node aggregate-frequencies of the IP-Trace dataset} \label{fig:agg5}
 \end{figure}
 
 \begin{figure}[!htbp]
@@ -821,5 +879,5 @@ On the IP-Trace dataset, the observed error of source-node aggregate-frequency e
       \legend{gMatrix with Partitioning,gMatrix without Partitioning}
   \end{axis}
 \end{tikzpicture}
-\caption{Observed error of destination-node aggregate-frequency queries on top-500 node aggregate-frequencies of the IP-Trace dataset} \label{fig:agg4}
+\caption{Observed error of destination-node aggregate-frequency queries on top-500 node aggregate-frequencies of the IP-Trace dataset} \label{fig:agg6}
 \end{figure}
