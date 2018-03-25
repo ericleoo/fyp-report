@@ -25,19 +25,20 @@ The datasets used to evaluate the sketches are graph streams consisting of disti
 \end{itemize}
 
 \section{Metrics}
-\subparagraph{Observed Error \cite{khan}}
+\subsection{Edge Frequency Estimation}
+\subsubsection{Observed Error \cite{khan}}
 \[
 observed\;error = \frac{ \sum_{i=1}^{|Q|}{|\tilde{f}(q_i) - f(q_i)|} }{\sum_{i=1}^{|Q|}f(q_i)}
 \]
 where $Q = \{q_i\}$ is the set of queries, $\tilde{f}$ is the estimated frequency, and $f$ is the actual frequency.
 
-\subsection{Average Relative Error \cite{DBLP}}
+\subsubsection{Average Relative Error \cite{DBLP}}
 \[
 average\;relative\;error = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{\tilde{f}(q_i)-f(q_i)}{f(q_i)}
 \]
 where $Q = \{q_i\}$ is the set of queries, $\tilde{f}$ is the estimated frequency, and $f$ is the actual frequency.
 
-\subsection{Effective Queries \cite{DBLP}}
+\subsubsection{Effective Queries \cite{DBLP}}
 Both Observed Error and Average Relative Error may be biased if the frequencies of the queries vary a lot, so we define queries as "effective" if the relative error is not exceeding $T$. The percentage of effective queries is computed by,
 \[
 effective\;queries = \frac{|\{q|\frac{\tilde{f}(q)-f(q)}{f(q)} \leq T, q \in Q\}|}{|Q|} \cdot 100\%
@@ -46,11 +47,25 @@ where $Q = \{q_i\}$ is the set of queries, $\tilde{f}$ is the estimated frequenc
 
 In this experiment, $T$ is set to 5, which is the same as \cite{DBLP}.
 
+\subsection{Heavy Hitter Edge Estimation}
+
+\subsection{Node Aggregate-Frequency Estimation}
+
 
 \clearpage
 \section{Results}
 
 \subsection{Edge Frequency Estimation}
+
+\paragraph{Friendster dataset}
+Partitioning reduces the observed error and the average relative error of the estimations, as seen on figures \ref{fig:F11}-\ref{fig:F21}. The lower errors are possible because partitioning reduces the number of queries with high relative errors (queries $q$ such that $\frac{\tilde{f}(q)-f(q)}{f(q)} > T$), as the number of effective queries themselves are actually lower with partitioning as seen on figure \ref{fig:F31}.
+
+\paragraph{Twitter dataset}
+Partitioning does not seem to be effective at all as seen on figures \ref{fig:T11}-\ref{fig:T32}.
+
+\paragraph{IP-Trace dataset}
+Partitioning reduces the observed error and the average relative error of the estimations, as seen on figures \ref{fig:I11}-\ref{fig:I21}. Unlike the results on the Friendster dataset, the number of effective queries after partitioning are only significantly lower on $h=1000$ and is actually higher than without partitioning on $h=4000$.
+
 %Friendster
 %Observed error
 
@@ -244,12 +259,8 @@ In this experiment, $T$ is set to 5, which is the same as \cite{DBLP}.
 \caption{Effective queries percentage on Friendster dataset considered over top-500 highest frequency edges} \label{fig:F32}
 \end{figure}
 
-\paragraph{Friendster dataset}
-Partitioning reduces the observed error and the average relative error of the estimations, as seen on figures \ref{fig:F11}-\ref{fig:F21}. The lower errors are possible because partitioning reduces the number of queries with high relative errors (queries $q$ such that $\frac{\tilde{f}(q)-f(q)}{f(q)} > T$), as the number of effective queries themselves are actually lower with partitioning as seen on figure \ref{fig:F31}.
-
 %Twitter
 %Observed error
-\clearpage
 
 \begin{figure}[!htbp]
 \centering
@@ -441,13 +452,11 @@ Partitioning reduces the observed error and the average relative error of the es
 \caption{Effective queries percentage on Twitter dataset considered over top-500 highest frequency edges} \label{fig:T32}
 \end{figure}
 
-\paragraph{Twitter dataset}
-Partitioning does not seem to be effective at all as seen on figures \ref{fig:T11}-\ref{fig:T32}.
+
 
 
 %IP Trace
 %Observed error
-\clearpage
 \begin{figure}[!htbp]
 \centering
 \begin{tikzpicture}
@@ -638,12 +647,12 @@ Partitioning does not seem to be effective at all as seen on figures \ref{fig:T1
 \caption{Effective queries percentage on IP-Trace dataset considered over top-500 highest frequency edges} \label{fig:I32}
 \end{figure}
 
-\paragraph{IP-Trace dataset}
-Partitioning reduces the observed error and the average relative error of the estimations, as seen on figures \ref{fig:I11}-\ref{fig:I21}. Unlike the results on the Friendster dataset, the number of effective queries after partitioning are only significantly lower on $h=1000$ and is actually higher than without partitioning on $h=4000$.
-
 % Heavy hitter
+
 \clearpage
 \subsection{Heavy Hitter Edge Estimation}
+
+Figures \ref{fig:EE1} and \ref{fig:EE2} show that after partitioning, the sketch is more sensitive to low frequency thresholds as the false positive rates are much higher at frequency threshold of 0.01\% of the total stream frequency. However, it performs as good at frequency threshold percentages of 0.1\% and 1\%, with no false positives produced at all.
 
 \begin{figure}[!htbp]
 \centering
@@ -653,7 +662,7 @@ Partitioning reduces the observed error and the average relative error of the es
       enlargelimits=0.15,
       legend style={at={(0.5,-0.3)},anchor=north,legend columns=-1},
       ylabel={False positive rate},
-      xlabel={h},
+      xlabel={Frequency threshold (\%)},
       width=7cm,
       symbolic x coords={0.01\%,0.1\%,1\%},
       xtick=data
@@ -673,7 +682,7 @@ Partitioning reduces the observed error and the average relative error of the es
       \legend{gMatrix with Partitioning, gMatrix without Partitioning}
   \end{axis}
 \end{tikzpicture}
-\caption{False positive rate of heavy hitter edge estimation on IP-Trace dataset} \label{fig:EE1}
+\caption{False positive rate of heavy hitter edge estimation on IP-Trace dataset with respect to varying frequency threshold percentages of the total stream frequency} \label{fig:EE1}
 \end{figure}
 
 \begin{figure}[!htbp]
@@ -684,7 +693,7 @@ Partitioning reduces the observed error and the average relative error of the es
       enlargelimits=0.15,
       legend style={at={(0.5,-0.3)},anchor=north,legend columns=-1},
       ylabel={False positive rate},
-      xlabel={h},
+      xlabel={Frequency threshold (\%)},
       width=7cm,
       symbolic x coords={0.01\%,0.1\%,1\%},
       xtick=data
@@ -704,5 +713,113 @@ Partitioning reduces the observed error and the average relative error of the es
       \legend{gMatrix with Partitioning, gMatrix without Partitioning}
   \end{axis}
 \end{tikzpicture}
-\caption{False positive rate of heavy hitter edge estimation on Friendster dataset} \label{fig:EE2}
+\caption{False positive rate of heavy hitter edge estimation on Friendster dataset with respect to varying frequency threshold percentages of the total stream frequency} \label{fig:EE2}
+\end{figure}
+
+%Node Aggregate
+\clearpage
+\subsection{Node Aggregate-Frequency Estimation}
+
+On the Friendster dataset, both observed errors of source and destination node aggregate-frequency estimations are higher after partitioning as can be seen on figures \ref{fig:agg1} and \ref{fig:agg2}.
+
+On the IP-Trace dataset, the observed error of source-node aggregate-frequency estimations is lower after partitioning as seen on figure \ref{fig:agg3}. However, according to \ref{fig:agg4}, the observed error is higher after partitioning in destination-node aggregate-frequency estimations, although it is still relatively very low.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      ybar,
+      enlargelimits=0.15,
+      legend style={at={(0.5,-0.1)},anchor=north,legend columns=-1},
+      ylabel={Observed error},
+      width=7cm,
+      xticklabels={,,}
+    ]
+      \addplot 
+	  coordinates {
+        (0, 3.920681)
+      };
+      \addplot 
+	  coordinates {
+        (0, 2.628615)
+      };
+      \legend{gMatrix with Partitioning,gMatrix without Partitioning}
+  \end{axis}
+\end{tikzpicture}
+\caption{Observed error of source-node aggregate-frequency queries on top-500 node aggregate-frequencies of the Friendster dataset} \label{fig:agg1}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      ybar,
+      enlargelimits=0.15,
+      legend style={at={(0.5,-0.1)},anchor=north,legend columns=-1},
+      ylabel={Observed error},
+      width=7cm,
+      xticklabels={,,}
+    ]
+      \addplot 
+	  coordinates {
+        (0, 1.391630)
+      };
+      \addplot 
+	  coordinates {
+        (0, 0.918388)
+      };
+      \legend{gMatrix with Partitioning,gMatrix without Partitioning}
+  \end{axis}
+\end{tikzpicture}
+\caption{Observed error of destination-node aggregate-frequency queries on top-500 node aggregate-frequencies of the Friendster dataset} \label{fig:agg2}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      ybar,
+      enlargelimits=0.15,
+      legend style={at={(0.5,-0.1)},anchor=north,legend columns=-1},
+      ylabel={Observed error},
+      width=7cm,
+      xticklabels={,,}
+    ]
+      \addplot 
+	  coordinates {
+        (0, 0.124063)
+      };
+      \addplot 
+	  coordinates {
+        (0, 0.177073)
+      };
+      \legend{gMatrix with Partitioning,gMatrix without Partitioning}
+  \end{axis}
+\end{tikzpicture}
+\caption{Observed error of source-node aggregate-frequency queries on top-500 node aggregate-frequencies of the IP-Trace dataset} \label{fig:agg3}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      ybar,
+      enlargelimits=0.15,
+      legend style={at={(0.5,-0.1)},anchor=north,legend columns=-1},
+      ylabel={Observed error},
+      width=7cm,
+      xticklabels={,,}
+    ]
+      \addplot 
+	  coordinates {
+        (0, 0.094721)
+      };
+      \addplot 
+	  coordinates {
+        (0, 0.079930)
+      };
+      \legend{gMatrix with Partitioning,gMatrix without Partitioning}
+  \end{axis}
+\end{tikzpicture}
+\caption{Observed error of destination-node aggregate-frequency queries on top-500 node aggregate-frequencies of the IP-Trace dataset} \label{fig:agg4}
 \end{figure}
