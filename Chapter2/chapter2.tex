@@ -15,7 +15,9 @@
 \section{Preliminaries}
 
 \subsection{Count-Min}
-The Count-Min\cite{cormode2005improved} sketch is a data-stream sketch that is used to approximate frequency counts of items in a data stream. It consists of a 2D array of size $h \times w$ and uses $w$ many hash functions for the approximation that each maps onto $[0,h-1]$.
+The Count-Min\cite{cormode2005improved} sketch is a data-stream sketch that is used to approximate frequency counts of items in a data stream.
+
+It consists of a 2D array. In a $h \times w$ sized Count-Min sketch, it consists of $w$ many hash functions that each maps onto $[0,h-1]$.
 
 To store the frequency of an item $x$, it first maps $x$ onto $w$ different values $g_k(x) \in [0,h-1]$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(x)^{th}$ row, $k^{th}$ column is incremented by the frequency of $x$.
 
@@ -24,12 +26,53 @@ Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column be denoted by $
 \subsection{gMatrix}
 The gMatrix\cite{khan} is a sketch that is similar to the Count-Min sketch, except that it consists of a 3D array instead of a 2D one and specializes on graph streams.
 
-To store the frequency of an edge $(i,j)$, it first maps $i$ and $j$ onto $w$ different values $g_k(i)$ and $g_k(j)$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(i)^{th}$ row, $g_k(j)^{th}$ column, and $k^{th}$ layer is incremented by the frequency of the edge $(i,j)$.
+In a $h \times h \times w$ sized gMatrix, to store the frequency of an edge $(i,j)$, it first maps $i$ and $j$ onto $w$ different values $g_k(i)$ and $g_k(j)$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(i)^{th}$ row, $g_k(j)^{th}$ column, and $k^{th}$ layer is incremented by the frequency of the edge $(i,j)$.
 
 Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column, and $k^{th}$ layer be denoted by $f(i,j,k)$. Querying the frequency estimate of an edge $(i,j)$ is as simple as finding $min\{f(g_k(i),g_k(j),k)|k \in \{1..w\}\}$.
 
 \subsection{gSketch}
-The gSketch\cite{DBLP} is a partitioning method performed onto a graph-stream-sketch prior to being populated with the stream. The method is based on the source vertex set of a sample stream.
+\begin{algorithm}
+\caption{Sketch-Partitioning-On-CountMin (Data Sample: $D$)}\label{cm}
+\begin{algorithmic}[1]
+
+\State Create a root node $S$ of the partitioning tree as an
+active node;
+\State $S.width \gets h$;
+\State $S.depth \gets w$;
+\State Create an empty list $L$ containing $S$ only;
+\While{$L \neq \varnothing$ }
+\State Partition active node $S \in L$ based on D into $S_1$, $S_2$ by minimizing E in equation \ref{objective};
+\State $S_1.width = S_2.width = \frac{S.width}{2};$
+\State $L \gets L \setminus \{ S \};$
+\If{$(S_1.width \geq w_0)$ and ($\sum_{m \in S_1} \tilde{d}(m) > C \cdot S_1.width$)}
+\State $L \gets L \cup S_1$;
+\Else
+\State Construct the localized sketch $S_1$;
+\EndIf
+
+\If{$(S_2.width \geq w_0)$ and ($\sum_{m \in S_2} \tilde{d}(m) > C \cdot S_2.width$)}
+\State $L \gets L \cup S_2$;
+\Else
+\State Construct the localized sketch $S_2$;
+\EndIf
+
+\EndWhile
+
+\end{algorithmic}
+\end{algorithm}
+The gSketch\cite{DBLP} is a partitioning method performed onto a graph-stream-sketch prior to being populated with the stream. The partitioning method is based on the source vertex set of a sample stream. The method is recursive and on each step of the recursion, it first sorts the sample by increasing average edge frequency, which is estimated by the ratio of vertex aggregate-frequency to its degree $\frac{\tilde{f_v}}{\tilde{d}}$, and then selects a pivot on which the sorted list is to be partitioned into two by minimizing an objective function,
+\begin{equation}
+\label{objective}
+E = \sum_{m \in S_1} \frac{\tilde{d}(m) \cdot \tilde{F}(S_1)}{\tilde{f}_v(m) / \tilde{d}(m)} + \sum_{m \in S_2} \frac{\tilde{d}(m) \cdot \tilde{F}(S_2)}{\tilde{f}_v(m) / \tilde{d}(m)}
+\end{equation}, where $S_1$ and $S_2$ are the two produced partitions on the step of the recursion and $\tilde{F}(S_i)$ is its total frequency, and that when minimized, the overall relative error of the whole sketch is minimized as well.
+
+In the method, there are two conditions in which if either is met, the recursion immediately terminates and the sketch is built:
+
+\begin{enumerate}
+\item $S.width < w_0$, i.e. the sketch is small enough
+\item $\sum_{m\in S}\tilde{d}(m) \leq C \cdot S.width$, where $C$ is a constant, i.e. the probability of collision in any cell of $S$ can be bounded above by $C$
+\end{enumerate}
+
 
 \section{Partitioning Scheme for gMatrix}
 
@@ -41,36 +84,41 @@ We propose two new optimizations to the partitioning scheme. The first is that s
 
 Another observation is that the right outlier partition size can be estimated by computing the outlier ratio from the data sample. We do so by first splitting the data sample into two, then, after selecting the suitable source nodes from the first split, the ratio of outliers in the second split is computed, which is essentially the ratio of the number of source nodes in the split not found among the previously-selected source nodes, to the size of the split. Then, it is assigned as the outlier partition size ratio.
 
-The partitioning algorithm is no different than in \cite{DBLP}. 
-
 \begin{algorithm}
-\caption{Sketch-Partitioning (Data Sample: $D$)}\label{euclid}
+\caption{Sketch-Partitioning-On-Gmatrix (Data Sample: $D$)}\label{gmat}
 \begin{algorithmic}[1]
 
 \State Create a root node $S$ of the partitioning tree as an
 active node;
-\State $S.sides \gets h$;
-\State $S.depth \gets d$;
+\State $S.rows \gets h$;
+\State $S.cols \gets h$;
+\State $S.depth \gets w$;
 \State Create an empty list $L$ containing $S$ only;
 \While{$L \neq \varnothing$ }
-\State Partition active node $S \in L$ based on D into $S_1$, $S_2$ by minimizing overall relative error;
+\State Partition active node $S \in L$ based on D into $S_1$, $S_2$ by minimizing E in equation \ref{objective};
 \State $S_1.rows = S_2.rows = \frac{S.rows}{2};$
-\State $L \gets L \setminus \left \{ S \right \};$
-\For{$i \in \left[ 1..2 \right]$}
-    \If{$(S_i.sides >= w_0)$ and ($\sum_{v \in V_S} \tilde{d}(v) \leqslant C \cdot S_i.sides$)}
-    
-    \State $L \gets L \cup S_i$;
-    \Else
-    \State Construct the localized sketch $S_i$;
-    
-    \EndIf
-\EndFor
+\State $L \gets L \setminus \{ S \};$
+\If{$(S_1.rows \geq w_0)$ and ($\sum_{m \in S_1} \tilde{d}(m) > C \cdot S_1.rows$)}
+\State $L \gets L \cup S_1$;
+\Else
+\State Construct the localized sketch $S_1$;
+\EndIf
+
+\If{$(S_2.rows \geq w_0)$ and ($\sum_{m \in S_2} \tilde{d}(m) > C \cdot S_2.rows$)}
+\State $L \gets L \cup S_2$;
+\Else
+\State Construct the localized sketch $S_2$;
+\EndIf
+
 \EndWhile
 
 \end{algorithmic}
 \end{algorithm}
 
-The selected source nodes are sorted based on non-decreasing average frequency of edges emanating from them $f_v/d_v$ in the data sample, where $f_v$ is the sum of frequencies of all edges in the data sample with source vertex $v$, and $d_v$ is the out-degree of vertex $v$. The sorted source vertex set is then recursively split into two, and each split minimizes the overall relative error E. \[E = \sum_{v \in S_1} \frac{d_v \cdot F_{S_1}}{f_v / d_v} + \sum_{v \in S_2} \frac{d_v \cdot F_{S_1}}{f_v / d_v}\]
+The selected source nodes are sorted based on non-decreasing average frequency of edges emanating from them $f_v/d_v$ in the data sample, where $f_v$ is the sum of frequencies of all edges in the data sample with source vertex $v$, and $d_v$ is the out-degree of vertex $v$. The sorted source vertex set is then recursively split into two, and each split minimizes the overall relative error E.
+\[
+E = \sum_{v \in S_1} \frac{d_v \cdot F_{S_1}}{f_v / d_v} + \sum_{v \in S_2} \frac{d_v \cdot F_{S_1}}{f_v / d_v}
+\]
 
 The recursion stops when either the size of the partition becomes small enough, i.e. the number of rows is less than a user-specified threshold $r_0$ (which is fixed at 100 in this experiment), or when the probability of collision in any particular cell in the sketch can be bounded above by a user-speficied threshold $C$, which is the case when the density of distinct edges, $\sum_{v \in s} d_v/(S.rows \cdot S.cols)$, is also bounded above by $C$, as proven in \cite{DBLP}.
 

@@ -32,7 +32,7 @@ The datasets used to evaluate the sketches are graph streams consisting of disti
 \end{itemize}
 
 \section{Metrics}
-\subsection{Edge Frequency Estimation}
+\subsection{Edge Frequency \& Node Aggregate-Frequency Estimation}
 \subsubsection{Observed Error \cite{khan}}
 \[
 observed\;error = \frac{ \sum_{i=1}^{|Q|}{|\tilde{f}(q_i) - f(q_i)|} }{\sum_{i=1}^{|Q|}f(q_i)}
@@ -55,9 +55,11 @@ where $Q = \{q_i\}$ is the set of queries, $\tilde{f}$ is the estimated frequenc
 In this experiment, $T$ is set to 5, which is the same as \cite{DBLP}.
 
 \subsection{Heavy Hitter Edge Estimation}
+\subsubsection{False Positive Rate \cite{khan}}
 
-\subsection{Node Aggregate-Frequency Estimation}
-
+\[
+false\;positive\;rate(\%) = \frac{#false\;heavyhitter\;edges}{#true\;heavyhitter\;edges} \cdot 100\%
+\]
 
 \clearpage
 \section{Results}
