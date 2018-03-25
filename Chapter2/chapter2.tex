@@ -21,18 +21,18 @@ It consists of a 2D array. In a $h \times w$ sized Count-Min sketch, it consists
 
 To store the frequency of an item $x$, it first maps $x$ onto $w$ different values $g_k(x) \in [0,h-1]$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(x)^{th}$ row, $k^{th}$ column is incremented by the frequency of $x$.
 
-Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column be denoted by $f(i,j)$. Querying the frequency estimate of an item $x$ is as simple as finding $min\{f(g_k(x),k)|k \in \{1..w\}\}$.
+Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column be denoted by $f(i,j)$. Querying the frequency estimate of an item $x$ is accomplished by finding $min\{f(g_k(x),k)|k \in \{1..w\}\}$.
 
 \subsection{gMatrix}
 The gMatrix\cite{khan} is a sketch that is similar to the Count-Min sketch, except that it consists of a 3D array instead of a 2D one and specializes on graph streams.
 
 In a $h \times h \times w$ sized gMatrix, to store the frequency of an edge $(i,j)$, it first maps $i$ and $j$ onto $w$ different values $g_k(i)$ and $g_k(j)$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(i)^{th}$ row, $g_k(j)^{th}$ column, and $k^{th}$ layer is incremented by the frequency of the edge $(i,j)$.
 
-Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column, and $k^{th}$ layer be denoted by $f(i,j,k)$. Querying the frequency estimate of an edge $(i,j)$ is as simple as finding $min\{f(g_k(i),g_k(j),k)|k \in \{1..w\}\}$.
+Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column, and $k^{th}$ layer be denoted by $f(i,j,k)$. Querying the frequency estimate of an edge $(i,j)$ is accomplished by finding $min\{f(g_k(i),g_k(j),k)|k \in \{1..w\}\}$.
 
 \subsection{gSketch}
 \begin{algorithm}
-\caption{Sketch-Partitioning-On-CountMin (Data Sample: $D$)}\label{cm}
+\caption{Sketch-Partitioning-On-CountMin \cite{DBLP} (Data Sample: $D$)}\label{cm}
 \begin{algorithmic}[1]
 
 \State Create a root node $S$ of the partitioning tree as an
@@ -60,32 +60,28 @@ active node;
 
 \end{algorithmic}
 \end{algorithm}
-The gSketch\cite{DBLP} is a partitioning method performed onto a graph-stream-sketch prior to being populated with the stream. The partitioning method is based on the source vertex set of a sample stream. The method is recursive and on each step of the recursion, it first sorts the sample by increasing average edge frequency, which is estimated by the ratio of vertex aggregate-frequency to its degree $\frac{\tilde{f_v}}{\tilde{d}}$, and then selects a pivot on which the sorted list is to be partitioned into two by minimizing an objective function,
+The gSketch\cite{DBLP} is a partitioning method performed onto a graph-stream-sketch prior to being populated with the stream. The partitioning method is based on the source vertex set of a sample stream. The method, as shown in Algorithm \ref{cm} \cite{DBLP}, is recursive and on each step of the recursion, it first sorts the sample in order of non-decreasing average edge frequency, which is estimated by the ratio of vertex aggregate-frequency to its degree $\frac{\tilde{f_v(m)}}{\tilde{d(m)}}$, and then selects a pivot on which the sorted list is to be partitioned into two by minimizing an objective function,
 \begin{equation}
 \label{objective}
 E = \sum_{m \in S_1} \frac{\tilde{d}(m) \cdot \tilde{F}(S_1)}{\tilde{f}_v(m) / \tilde{d}(m)} + \sum_{m \in S_2} \frac{\tilde{d}(m) \cdot \tilde{F}(S_2)}{\tilde{f}_v(m) / \tilde{d}(m)}
-\end{equation}, where $S_1$ and $S_2$ are the two produced partitions on the step of the recursion and $\tilde{F}(S_i)$ is its total frequency, and that when minimized, the overall relative error of the whole sketch is minimized as well.
+\end{equation}, where $S_1$ and $S_2$ are the two produced partitions based on the selected pivot on the step of the recursion and $\tilde{F}(S_i)$ is its total frequency, and that when minimized, the overall relative error of the whole sketch is minimized as well.
 
-In the method, there are two conditions in which if either is met, the recursion immediately terminates and the sketch is built:
+As shown in Algorithm \ref{cm}, there are two conditions in which if any one of the two is met, the recursion is immediately terminated and starts to build the local partition $S$:
 
 \begin{enumerate}
-\item $S.width < w_0$, i.e. the sketch is small enough
-\item $\sum_{m\in S}\tilde{d}(m) \leq C \cdot S.width$, where $C$ is a constant, i.e. the probability of collision in any cell of $S$ can be bounded above by $C$
+\item $S.width < w_0$ as the sketch is small enough.
+\item $\sum_{m\in S}\tilde{d}(m) \leq C \cdot S.width$, where $C$ is a constant, as it implies that the probability for any collisions to occur in any cell of $S$ can be bounded above by $C$.
 \end{enumerate}
 
 
-\section{Partitioning Scheme for gMatrix}
+\section{gSketch Partitioning Method for gMatrix}
 
-Partitioning\cite{DBLP} is shown to improve Count-Min's\cite{DBLP}\cite{cormode2005improved} accuracy. The idea of the partitioning is to group edges with similar frequencies in the same partition to improve sketch accuracy. A data sample of the graph stream is needed to perform the partitioning.
+The gSketch partitioning\cite{DBLP} is shown to improve Count-Min's\cite{cormode2005improved} accuracy. The partitioning works by grouping edges with similar frequencies in the same partition to improve sketch accuracy and requires an available data sample.
 
-The partitioning scheme can also be applied onto the gMatrix. After partitioning, each of the resulting partitions is associated with a set of source vertices. Each source vertex is then only associated with exactly one partition. Edge $(u,v)$ is stored in partition $p$ if and only if $u$ is in the set of source vertices associated with the partition $p$. An outlier partition is reserved to store frequencies of edges in the dataset whose source node is not associated with any of the resulting partitions.
-
-We propose two new optimizations to the partitioning scheme. The first is that since the purpose of the partitioning is to group edges with similar frequencies together, we do not need to use all source nodes from the data sample for partitioning. In particular, we can compute the statistical variances of the frequencies of edges from the data sample with common source node $i$ and filter edges with source nodes for which the variance is exceeding a certain threshold.
-
-Another observation is that the right outlier partition size can be estimated by computing the outlier ratio from the data sample. We do so by first splitting the data sample into two, then, after selecting the suitable source nodes from the first split, the ratio of outliers in the second split is computed, which is essentially the ratio of the number of source nodes in the split not found among the previously-selected source nodes, to the size of the split. Then, it is assigned as the outlier partition size ratio.
+The same partitioning method can also be applied onto the gMatrix, as shown in Algorithm \ref{gmat}, by changing the width $S.width$ of the Count-Min sketch with the number of rows of the gMatrix $S.rows$.
 
 \begin{algorithm}
-\caption{Sketch-Partitioning-On-Gmatrix (Data Sample: $D$)}\label{gmat}
+\caption{Sketch-Partitioning-On-gMatrix (Data Sample: $D$)}\label{gmat}
 \begin{algorithmic}[1]
 
 \State Create a root node $S$ of the partitioning tree as an
@@ -115,14 +111,23 @@ active node;
 \end{algorithmic}
 \end{algorithm}
 
-The selected source nodes are sorted based on non-decreasing average frequency of edges emanating from them $f_v/d_v$ in the data sample, where $f_v$ is the sum of frequencies of all edges in the data sample with source vertex $v$, and $d_v$ is the out-degree of vertex $v$. The sorted source vertex set is then recursively split into two, and each split minimizes the overall relative error E.
-\[
-E = \sum_{v \in S_1} \frac{d_v \cdot F_{S_1}}{f_v / d_v} + \sum_{v \in S_2} \frac{d_v \cdot F_{S_1}}{f_v / d_v}
-\]
+We provide a proof that the terminating condition $\sum_{m \in S} \tilde{d}(m) \leq C \cdot S.rows$ still guarantees that the probability for any collisions to occur in the sketch partition is bounded above by $C$.
 
-The recursion stops when either the size of the partition becomes small enough, i.e. the number of rows is less than a user-specified threshold $r_0$ (which is fixed at 100 in this experiment), or when the probability of collision in any particular cell in the sketch can be bounded above by a user-speficied threshold $C$, which is the case when the density of distinct edges, $\sum_{v \in s} d_v/(S.rows \cdot S.cols)$, is also bounded above by $C$, as proven in \cite{DBLP}.
+\begin{theorem}
+Let $S$ be a gMatrix partition and $0<C<1$ be a constant. Then, the condition $\sum_{m \in S} \tilde{d}(m) \leq C \cdot S.rows$ implies that the probability for any collisions to occur in $S$ is bounded above by C.
+\end{theorem}
 
-Next, we observe how gMatrix answers various query types after being partitioned.
+\begin{proof}
+There are two cases of spurious edges that may collide with an edge $(i,j)$ in $S$. The first case of such edges are those for which both end-points are neither $i$ nor $j$, and the probability of collision is $\frac{1}{S.rows \cdot S.cols}$. The second case of such edges are those for which either the source node is $i$ too or the destination node is $j$ too, and the probability of collision is $\frac{1}{S.cols}$ and $\frac{1}{S.rows}$ consecutively. Since the partitioning divides the number of rows into half on each step of the recursion, on an $h \times h \times w$ gMatrix, it always holds that $S.rows \leq S.cols$, and so the probability of collision is at most $\frac{1}{S.rows}$. Since there are $\sum_{m \in S} \tilde{d}(m)$ distinct edges in $S$, the probability for any collisions to occur is at most $\frac{\sum_{m \in S} \tilde{d}(m)}{S.rows}$. Therefore, $\sum_{m \in S} \tilde{d}(m) \leq C \cdot S.rows$ guarantees that the probability for any collisions to occur in the sketch is bounded above by $C$.
+\end{proof}
+
+After partitioning, each of the resulting partitions is associated with a set of source vertices. Each source vertex is then only associated with exactly one partition. Edge $(u,v)$ is stored in partition $p$ if and only if $u$ is in the set of source vertices associated with the partition $p$. An outlier partition is then needed to be reserved to store frequencies of edges in the dataset whose source node is not associated with any of the resulting partitions of the sketch partitioning algorithm.
+
+We propose two new optimizations to the partitioning method. The first is that since the partitioning works by grouping edges with similar average frequencies together estimated by the ratio of source-vertex aggregate-frequency to its degree $\frac{\tilde{f}_v(m)}{\tilde{d}(m)}$ and that edges with a common source-node $m$ are assumed to have similar frequencies, we can filter ones for which the assumption does not hold. In particular, we can compute the statistical variances of the frequencies of edges from the data sample with common source nodes and filter edges with source nodes for which the variance of the frequencies is exceeding a certain threshold.
+
+Another observation is that the outlier partition size to be used for the sketch can be estimated by computing the outlier ratio from the data sample. We do so by first splitting the data sample into two, and then after selecting the suitable source nodes from the first split, the ratio of outliers in the second split is computed, which is essentially the ratio of the number of source nodes in the split not found among the previously-selected source nodes to the size of the split.
+
+Next, we observe how gMatrix answers various query types after being partitioned and how partitioning affects gMatrix's accuracy.
 
 \subsection{Edge Frequency Query Estimation}
 
@@ -130,16 +135,16 @@ Since there is only one partition associated with each source vertex, to retriev
 
 \begin{enumerate}
   \item Find partition $p$ that is responsible for $i$
-  \item Find the minimum of $V_P(g_k(i),g_k(j),k)$ for all $k \in \{1..w\}$, where $V_P$ is the value of the cell in the partition $p$. 
+  \item Find $min\{V_P(g_k(i),g_k(j),k)|\forall k \in \{1..w\}\}$, where $V_P$ is the value of the cell in the partition $p$. 
 \end{enumerate}
 
 Since obtaining the frequency estimate of an arbitrary edge only depends on the partition containing the edge, we observe how each partition answers the query.
 
-Let $S$ be a gMatrix of size $h\times h\times w$. Suppose the partitioning step is performed already. Note that any of the produced partitions will have number of rows equal to $\frac{h}{2^d}$ where $d$ is the depth of the recursion in which the partition is built. Let $p$ be an arbitrary partition. The size of $p$ is $\frac{h}{2^d}\times h\times w$.
+Let $S$ be a gMatrix of size $h\times h\times w$. Suppose the partitioning step has been performed already. Note that any of the produced partitions will have number of rows equal to $\frac{h}{2^d}$ where $d$ is the depth of the recursion in which the partition is built. Let $p$ be an arbitrary partition. The size of $p$ is $\frac{h}{2^d}\times h\times w$.
 
 \begin{theorem}
 \label{thm:efreqguarantee}
-Let $(i,j)$ be an edge in $p$, $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+Let $p$ be a partition built at depth $d$ of the sketch partitioning algorithm. Let $(i,j)$ be an edge in $p$, $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
   
   \[
 P(Q(i,j) \leq \overline{Q(i,j)} \leq Q(i,j) + L_p \cdot \epsilon + A_p(j) \cdot h \cdot \epsilon + B_p(i) \cdot h \cdot \epsilon) \geq 1-(\frac{2^{d+1}+1}{h^2\cdot\epsilon})^w
@@ -162,13 +167,13 @@ The first possible case of spurious edges $(u,v)$ are those for which $u \neq i$
 P(X_k \geq L_p \cdot \epsilon) \leq \frac{E[X_k]}{L_p \cdot \epsilon} = \frac{2^d}{h^2\epsilon}
 \end{equation}
 
-The second possible case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_p(j)}{h}$. By Markov's inequality,
+The second possible case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability for any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_p(j)}{h}$. By Markov's inequality,
 
 \begin{equation} \label{efreq2}
 P(Y_k \geq h A_p(j) \cdot \epsilon) \leq \frac{E[Y_k]}{h A_p(j) \cdot \epsilon} = \frac{2^d}{h^2\epsilon}
 \end{equation}
 
-The third possible case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_p(i)}{h}$. By Markov's inequality,
+The third possible case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability for any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_p(i)}{h}$. By Markov's inequality,
 
 \begin{equation} \label{efreq3}
 P(Z_k \geq h B_p(i) \cdot \epsilon) \leq \frac{E[Z_k]}{h B_p(i) \cdot \epsilon} = \frac{1}{h^2\epsilon}
@@ -196,10 +201,12 @@ Therefore,
 
 
 \subsection{Heavy-hitter Edge Query Estimation}
-Obtaining edges with frequencies at least $F$ in the graph stream is accomplished by first obtaining a set of edges with frequencies at least $F$ from each partition in the gMatrix and then taking the union of each of them.
+Obtaining edges with frequencies at least $F$ in the graph stream is accomplished by first obtaining a set of edges with frequencies at least $F$ from each partition in the gMatrix, which can be accomplished as described in \cite{khan}, and then taking the union of each of the obtained sets. As in \cite{khan}, the resulting set of heavy-hitter edges may consist of edges that are not actually heavy-hitter edges, but the set of all true heavy-hitter edges is always a subset, i.e. there are no missing true heavy-hitter edges in the resulting set.
+
+We observe the probability that an edge $(i,j)$ is correctly classified as a heavy-hitter edge in each partition.
 
 \begin{theorem}
-Let $(i,j)$ be an edge and $p$ be the partition associated with $i$. Let $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+Let $p$ be a partition built at depth $d$ of the sketch partitioning algorithm. Let $(i,j)$ be an edge in $p$. Let $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
 \[
 P(Q(i,j) \geq F) \geq 1-(\frac{3\cdot2^d(L_p+h\cdot A_p(j)) + 3\cdot h\cdot B_p(i)}{h^2\cdot (\overline{Q(i,j)}-F)})^w
 \]
@@ -216,13 +223,13 @@ The first possible case of spurious edges $(u,v)$ are those for which $u \neq i$
 P(X_k \geq \frac{\overline{Q(i,j)}-F}{3}) \leq \frac{E[X_k]}{\frac{\overline{Q(i,j)}-F}{3}} = \frac{3\cdot2^dL_p}{h^2(\overline{Q(i,j)}-F)}
 \end{equation}
 
-The second possible case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_p(j)}{h}$. By Markov's inequality,
+The second possible case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability for any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_p(j)}{h}$. By Markov's inequality,
 
 \begin{equation} \label{hh2}
 P(Y_k \geq \frac{\overline{Q(i,j)}-F}{3}) \leq \frac{E[Y_k]}{\frac{\overline{Q(i,j)}-F}{3}} = \frac{3\cdot2^dA_p(j)}{h(\overline{Q(i,j)}-F)}
 \end{equation}
 
-The third possible case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_p(i)}{h}$. By Markov's inequality,
+The third possible case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability for any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_p(i)}{h}$. By Markov's inequality,
 
 \begin{equation} \label{hh3}
 P(Z_k \geq \frac{\overline{Q(i,j)}-F}{3}) \leq \frac{E[Z_k]}{\frac{\overline{Q(i,j)}-F}{3}} = \frac{3\cdot B_p(i)}{h(\overline{Q(i,j)}-F)}
@@ -246,21 +253,21 @@ Therefore,
 
 \subsection{Node Aggregate-Frequency Query Estimation}
 
-The queries ask for the sum of frequencies of all edges incoming to / outgoing from a node $i$. Due to partitioning based on source nodes, source-node aggregate-frequency queries and destination-node aggregate-frequency queries are computed differently.
+The queries ask for the sum of frequencies of all edges incoming to / outgoing from a node $i$. Due to partitioning based on source nodes, source-node aggregate-frequency queries and destination-node aggregate-frequency queries are answered differently.
 
 \subsubsection{Source-Node Aggregate-Frequency Query Estimation}
 
 The task of finding the aggregate frequency of a source node $i$ is broken down to:
 
 \begin{enumerate}
-\item Finding the associated partition $p$ of $i$
-\item Finding the aggregate frequency of the source node $i$ at the partition $p$
+\item Finding the associated partition $p$ of $i$.
+\item Finding the aggregate frequency of the source node $i$ at the partition $p$, which can be accomplished as described in \cite{khan}.
 \end{enumerate}
 
 
 \begin{theorem}
 \label{thm:agg1}
-Let $(i,j)$ be an edge and $p$ be the partition associated with $i$. Let $Q_{agg}^{+}(i)$ be the true aggregate-frequency of source-node $i$, and $\overline{Q_{agg}^{+}(i)}$ be its estimated aggregate-frequency. Let $p$ be a partition associated with $i$ and $L_p$ be the total frequency of edges received so far on $p$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+Let $p$ be a partition built at depth $d$ of the sketch partitioning algorithm. Let $(i,j)$ be an edge in $p$. Let $Q_{agg}^{+}(i)$ be the true aggregate-frequency of source-node $i$, and $\overline{Q_{agg}^{+}(i)}$ be its estimated aggregate-frequency. Let $L_p$ be the total frequency of edges received so far on $p$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
 \[
 P(Q_{agg}^{+}(i) \leq \overline{Q_{agg}^{+}(i)} \leq Q_{agg}^{+}(i) + L_p \cdot \epsilon) \geq 1-(\frac{2^d}{h\cdot\epsilon})^w
 \]
@@ -271,7 +278,7 @@ We note that $P(Q_{agg}^{+}(i) \leq \overline{Q_{agg}^{+}(i)}) = 1$ since $\over
 \[
 P(\overline{Q_{agg}^{+}(i)} \leq Q_{agg}^{+}(i) + L_p \cdot \epsilon) \geq 1-(\frac{2^d}{h\cdot\epsilon})^w
 \]
-In any arbitrary partition $p$, the probability for a spurious edge $(u,v)$, where $u \neq i$ and $u$ is associated with $p$, to be mapped onto $(g_k(i),\cdot,k)$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$, so the expected number of spurious edges that are mapped into $(g_k(i),\cdot,k)$ is $\frac{2^dL_p}{h}$. Let $R_k$ be the random variable that represents the number of such spurious edges for the $k^{th}$ hash function. By Markov's inequality,
+In any arbitrary partition $p$, the probability for a spurious edge $(u,v)$, where $u \neq i$ and $u$ is associated with $p$, to be mapped onto any of the columns at the $g_k(i)^{th}$ row, $k^{th}$ layer of $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$, so the expected number of spurious edges is $\frac{2^dL_p}{h}$. Let $R_k$ be the random variable that represents the number of such spurious edges for the $k^{th}$ hash function. By Markov's inequality,
 
 \begin{equation} \label{agg21}
   P(R_k \geq L_p \epsilon) \leq \frac{E[R_k]}{L_p \epsilon} = \frac{2^d}{h\epsilon}
@@ -297,13 +304,13 @@ As the depth $d$ of the recursion in which the partition is built increases, the
 The task of finding the aggregate-frequency of a destination node $j$ is broken down to:
 
 \begin{enumerate}
-\item Computing the aggregate-frequency of the destination-node $j$ in each partition $p$
+\item Computing the aggregate-frequency of the destination-node $j$ in each partition $p$, which can be accomplished as described in \cite{khan}.
 \item Computing the sum of all of the computed destination-node aggregate-frequencies together
 \end{enumerate}
 
 \begin{theorem}
 \label{thm:agg2}
-  Let $Q_{agg}^{-}(j)$ be the true aggregate-frequency of destination-node $j$, and $\overline{Q_{agg}^{-}(j)}$ be the estimated aggregate-frequency. Let $L$ be the total frequency of edges received so far. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+Let $Q_{agg}^{-}(j)$ be the true aggregate-frequency of destination-node $j$, and $\overline{Q_{agg}^{-}(j)}$ be the estimated aggregate-frequency. Let $L$ be the total frequency of edges received so far. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
   
   \[
 P(Q_{agg}^{-}(j) \leq \overline{Q_{agg}^{-}(j)} \leq Q_{agg}^{-}(j) + L \cdot \epsilon) \geq 1-(\frac{n}{h\cdot\epsilon})^w
@@ -316,13 +323,13 @@ We note that $P(Q_{agg}^{-}(j) \leq \overline{Q_{agg}^{-}(j)}) = 1$ since $\over
 \[
 P(\overline{Q_{agg}^{-}(j)} \leq Q_{agg}^{-}(j) + L \cdot \epsilon) \geq 1-(\frac{n}{h\cdot\epsilon})^w
 \]
-Let $\{p_1,..,p_n\}$ be the set of all partitions in the gMatrix and $L_i$ be the total frequency of edges in $p_i$. In any partition $p_i$, the probability for a spurious edge $(u,v)$, $v \neq j$ to be mapped onto $(\cdot,g_k(j),k)$ is $\frac{1}{h}$, so the expected number of spurious edges that are mapped into $(\cdot,g_k(j),k)$ is $\frac{L_i}{h}$. Let $R_k^i$ be the random variable that represents the number of spurious edges in $p_i$ for the $k^{th}$ hash function. By Markov's inequality,
+Let $\{p_1,..,p_n\}$ be the set of all partitions in the gMatrix and $L_i$ be the total frequency of edges in $p_i$. In any partition $p_i$, the probability for a spurious edge $(u,v)$, $v \neq j$ to be mapped onto any of the rows at the $g_k(j)^{th}$ column, $k^{th}$ layer is $\frac{1}{h}$, so the expected number of spurious edges is $\frac{L_i}{h}$. Let $R_k^i$ be the random variable that represents the number of spurious edges in $p_i$ for the $k^{th}$ hash function. By Markov's inequality,
 
 \begin{equation} \label{agg21}
   P(R_k^i \geq L_i \epsilon) \leq \frac{E[R_k^i]}{L_i \epsilon} = \frac{1}{h\epsilon}
 \end{equation}
 
-Let $R_k = \sum_{i=1}^{n} R_k^i$. Combining inequation \ref{agg21} for all $i \in \{1..n\}$, 
+Let $R_k = \sum_{i=1}^{n} R_k^i$ be the total number of spurious edges in all of the $n$ partitions. Combining inequation \ref{agg21} for all $i \in \{1..n\}$, 
 
 \begin{equation} \label{agg22}
  P(R_k \geq L\epsilon) \leq \frac{n}{h\epsilon}
@@ -340,5 +347,5 @@ Therefore,
 \end{proof}
 
 \begin{remarks}
-The probability of the guarantee gets lower as the number of partitions increases, and the guarantee itself never gets any better with partitioning.
+The probability of the guarantee gets lower as the number of partitions increases, and the guarantee itself never gets any better with partitioning. In other words, partitioning will never improve the accuracy of gMatrix for answering destination-node aggregate-frequency queries.
 \end{remarks}

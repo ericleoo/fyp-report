@@ -14,22 +14,28 @@
 We compare the accuracy of gMatrix without partitioning and with partitioning for answering edge frequency estimation queries.
 
 \section{Implementation}
-In this experiment, the data sample needed for partitioning is obtained by performing reservoir sampling\cite{DBLP} on the graph stream. Each data sample consists of 5\% random edges from the graph stream.
+The code used for all of the experiments are implemented in C++. All experiments were performed on Intel Xeon 2GHz 16GB server.
 
-Statistical threshold of 100 is used to filter source nodes of the data sample.
+We note that some of the variables mentioned in the earlier chapter are made to be constants for the purpose of the project. These include:
 
-For outlier ratio estimation, data sample is split by 90:10 ratio.
-
-\section{System Description}
-The code is implemented in C++ and experiments were performed on Intel Xeon 2GHz 16GB server.
+\begin{itemize}
+\item The data sample used for partitioning is the same in all experiments, i.e. they are only randomly sampled once using Reservoir Sampling. All of the samples' size are 5\% of the corresponding dataset size. They are not regenerated on different runtimes of the experiements.
+\item Statistical variance threshold for filtering source nodes to be used for the partitioning algorithm is set to 100 for all experiments.
+\item For outlier ratio estimation, data sample is split by 90:10 ratio for all experiments.
+\item For the first terminating condition of the sketch partitioning algorithm, the minimum number of rows $w_0$ for any partition is set to 400 in all experiments.
+\item For the second terminating condition of the sketch partitioning algorithm, the upper-bound constant $C$ is set to $0.1$ in all experiments.
+\end{itemize}
 
 \section{Datasets}
-The datasets used to evaluate the sketches are graph streams consisting of distinct edges only. The datasets are:
+The datasets used for the experiments are the same graph streams used for evaluating gMatrix in \cite{khan}, such as:
+
 \begin{itemize}
 \item IP-Trace Network Stream \cite{khan}
 \item Twitter Communication Stream \cite{khan}
 \item Friendster Stream with Zipf Frequency distribution \cite{khan}
 \end{itemize}
+
+All datasets used for all of the experiments consist of distinct edges only.
 
 \section{Metrics}
 \subsection{Edge Frequency \& Node Aggregate-Frequency Estimation}
@@ -52,11 +58,11 @@ effective\;queries = \frac{|\{q|\frac{\tilde{f}(q)-f(q)}{f(q)} \leq T, q \in Q\}
 \]
 where $Q = \{q_i\}$ is the set of queries, $\tilde{f}$ is the estimated frequency, and $f$ is the actual frequency.
 
-In this experiment, $T$ is set to 5, which is the same as \cite{DBLP}.
+In the project, $T$ is a constant and is set to 5, as also is the case in \cite{DBLP}.
 
 \subsection{Heavy Hitter Edge Estimation}
 \subsubsection{False Positive Rate \cite{khan}}
-
+The metric measures the percentage of edges that are misclassified as heavy-hitter edges.
 \[
 false\;positive\;rate(\%) = \frac{#false\;heavyhitter\;edges}{#true\;heavyhitter\;edges} \cdot 100\%
 \]
