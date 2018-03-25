@@ -12,6 +12,14 @@
 \fi
 
 
+\section{Preliminaries}
+
+\subsection{CountMin Sketch}
+
+\subsection{gSketch}
+
+\subsection{gMatrix}
+
 \section{Partitioning Scheme}
 
 We implement the idea of partitioning from \cite{DBLP} onto the gMatrix.
@@ -58,28 +66,28 @@ The suitable source vertices are sorted based on non-decreasing average frequenc
 The recursion stops when either the size of the partition becomes small enough, i.e. the number of rows is less than a user-specified threshold $r_0$ (which is fixed at 100 in this experiment), or when the probability of collision in any particular cell in the sketch can be bounded above by a user-speficied threshold $C$, which is the case when the density of distinct edges, $\sum_{v \in s} d_v/(S.rows \cdot S.cols)$, is also bounded above by $C$, as proven in \cite{DBLP}.
 
 
-\section{Edge Frequency Estimation}
+\section{Edge Frequency Queries}
 
-\subsection{Description}
-Since for each source vertex, there is only one partition that is responsible for storing any edges incident on it, to find the estimated frequency for an arbitrary edge $(i,j)$:
+\subsubsection{Description}
+Since there is only one partition associated with each source vertex, to retrieve the estimated frequency for an arbitrary edge $(i,j)$:
 
 \begin{enumerate}
-  \item Find partition $P$ that is responsible for $i$
-  \item Find the minimum of $V_P(g_k(i),g_k(j),k)$ for all $k \in \{1..w\}$, where $V_P$ is the value of the cell in the partition $P$. 
+  \item Find partition $p$ that is responsible for $i$
+  \item Find the minimum of $V_P(g_k(i),g_k(j),k)$ for all $k \in \{1..w\}$, where $V_P$ is the value of the cell in the partition $p$. 
 \end{enumerate}
 
-\subsection{Analysis}
+\subsubsection{Analysis}
 
-Let $S$ be a gMatrix of size $h\times h\times w$. Let $U$ be the set of source vertices in the data sample. Suppose the partitioning step is performed already. Note that any of the produced partitions will have number of rows equal to $\frac{h}{2^d}$ where $d$ is the depth of the recursion in which the partition is built. Let P be an arbitrary partition. The size of P is $\frac{h}{2^d}\times h\times w$. Let $U_P$ be the set of source vertices in the data sample associated with $P$.
+Since obtaining the frequency estimate of an arbitrary edge only depends on the partition containing the edge, we observe how each partition answers the query.
 
-
+Let $S$ be a gMatrix of size $h\times h\times w$. Suppose the partitioning step is performed already. Note that any of the produced partitions will have number of rows equal to $\frac{h}{2^d}$ where $d$ is the depth of the recursion in which the partition is built. Let $p$ be an arbitrary partition. The size of $p$ is $\frac{h}{2^d}\times h\times w$.
 
 \begin{theorem}
-\label{probguarantee}
-  Let $(i,j)$ be an edge in $P$, $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition P. Let $L_P$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u \in U_P$. Let $A_P(j)$ be the sum of the frequencies of edges $(u,v)$ on $P$ such that $v=j$. Let $B_P(i)$ be the sum of the frequencies of edges $(u,v)$ on $P$ such that $u=i$. Then,
+\label{efreqguarantee}
+Let $(i,j)$ be an edge in $p$, $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
   
   \[
-P(Q(i,j) \leq \overline{Q(i,j)} \leq Q(i,j) + L_P \cdot \epsilon + A_P(j) \cdot h \cdot \epsilon + B_P(i) \cdot h \cdot \epsilon) \geq 1-(\frac{2^{d+1}+1}{h^2\cdot\epsilon})^w
+P(Q(i,j) \leq \overline{Q(i,j)} \leq Q(i,j) + L_p \cdot \epsilon + A_p(j) \cdot h \cdot \epsilon + B_p(i) \cdot h \cdot \epsilon) \geq 1-(\frac{2^{d+1}+1}{h^2\cdot\epsilon})^w
 \]
 
 \end{theorem}
@@ -88,39 +96,39 @@ P(Q(i,j) \leq \overline{Q(i,j)} \leq Q(i,j) + L_P \cdot \epsilon + A_P(j) \cdot 
   Note that $\overline{Q(i,j)}$ is essentially $Q(i,j)$ added with the frequencies of spurious edges mapped into the same cell $(g_k(i),g_k(j),k)$ in the partition, so $P(Q(i,j) \leq \overline{Q(i,j)}) = 1$. We remain to show that
 
 \[
-P(\overline{Q(i,j)} \leq Q(i,j) + L_P \cdot \epsilon + A_P(j) \cdot h \cdot \epsilon + B_P(i) \cdot h \cdot \epsilon) \geq 1-(\frac{2^{d+1}+1}{h^2\cdot\epsilon})^w
+P(\overline{Q(i,j)} \leq Q(i,j) + L_p \cdot \epsilon + A_p(j) \cdot h \cdot \epsilon + B_p(i) \cdot h \cdot \epsilon) \geq 1-(\frac{2^{d+1}+1}{h^2\cdot\epsilon})^w
 \]
 
   There are three possible cases for the spurious edges.
   
-The first is those spurious edges $(u,v)$ for which $u \neq i$ and $v \neq j$. Any of such edges are equally likely to be mapped into any cell in $P$, and the probability to be mapped into any particular cell is $\frac{1}{h \cdot \frac{h}{2^d}} = \frac{2^d}{h^2}$. Let $X_k$ be a random variable that represents the number of such spurious edges that are mapped into $(g_k(i),g_k(j),k)$. Therefore, $E[X_k] = \frac{2^dL_P}{h^2}$. Then, by Markov's inequality,
+The first possible case of spurious edges $(u,v)$ are those for which $u \neq i$ and $v \neq j$. Any of such edges are equally likely to be mapped into any cell in $p$, and the probability to be mapped into any particular cell is $\frac{1}{h \cdot \frac{h}{2^d}} = \frac{2^d}{h^2}$. Let $X_k$ be a random variable that represents the number of such spurious edges that are mapped into $(g_k(i),g_k(j),k)$. Therefore, $E[X_k] = \frac{2^dL_p}{h^2}$. Then, by Markov's inequality,
 
 \begin{equation} \label{efreq1}
-P(X_k > L_P \cdot \epsilon) \leq \frac{E[X_k]}{L_P \cdot \epsilon} = \frac{2^d}{h^2\epsilon}
+P(X_k \geq L_p \cdot \epsilon) \leq \frac{E[X_k]}{L_p \cdot \epsilon} = \frac{2^d}{h^2\epsilon}
 \end{equation}
 
-The second case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $P$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_P(j)}{h}$. By Markov's inequality,
+The second possible case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_p(j)}{h}$. By Markov's inequality,
 
 \begin{equation} \label{efreq2}
-P(Y_k > h A_P(j) \cdot \epsilon) \leq \frac{E[Y_k]}{h A_P(j) \cdot \epsilon} = \frac{2^d}{h^2\epsilon}
+P(Y_k \geq h A_p(j) \cdot \epsilon) \leq \frac{E[Y_k]}{h A_p(j) \cdot \epsilon} = \frac{2^d}{h^2\epsilon}
 \end{equation}
 
-The third case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $P$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_P(i)}{h}$. By Markov's inequality,
+The third possible case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_p(i)}{h}$. By Markov's inequality,
 
 \begin{equation} \label{efreq3}
-P(Z_k > h B_P(i) \cdot \epsilon) \leq \frac{E[Z_k]}{h B_P(i) \cdot \epsilon} = \frac{1}{h^2\epsilon}
+P(Z_k \geq h B_p(i) \cdot \epsilon) \leq \frac{E[Z_k]}{h B_p(i) \cdot \epsilon} = \frac{1}{h^2\epsilon}
 \end{equation}
 
-Combining equations \ref{efreq1}, \ref{efreq2}, \ref{efreq3},
+Combining inequations \ref{efreq1}, \ref{efreq2}, \ref{efreq3},
 \begin{equation} \label{efreq4}
-  P(X_k + Y_k + Z_k > L_P \cdot \epsilon + A_P(j) \cdot h \cdot \epsilon + B_P(i) \cdot h \cdot \epsilon) \leq \frac{2^{d+1}+1}{h^2\cdot\epsilon}
+  P(X_k + Y_k + Z_k \geq L_p \cdot \epsilon + A_p(j) \cdot h \cdot \epsilon + B_p(i) \cdot h \cdot \epsilon) \leq \frac{2^{d+1}+1}{h^2\cdot\epsilon}
 \end{equation}
 
 Therefore,
 \begin{align}
 \begin{split}
-&  P(\overline{Q(i,j)} \leq Q(i,j) + L_P \cdot \epsilon + A_P(i) \cdot h \cdot \epsilon + B_P(i) \cdot h \cdot \epsilon)
-\\  &= 1 - \prod _{k=1}^{w}P(X_k + Y_k + Z_k > L_P \cdot \epsilon + A_P(j) \cdot h \cdot \epsilon + B_P(i) \cdot h \cdot \epsilon)
+&  P(\overline{Q(i,j)} \leq Q(i,j) + L_p \cdot \epsilon + A_p(i) \cdot h \cdot \epsilon + B_p(i) \cdot h \cdot \epsilon)
+\\  &= 1 - \prod _{k=1}^{w}P(X_k + Y_k + Z_k \geq L_p \cdot \epsilon + A_p(j) \cdot h \cdot \epsilon + B_p(i) \cdot h \cdot \epsilon)
 \\  &\geq 1-(\frac{2^{d+1}+1}{h^2\cdot\epsilon})^w
 \end{split}
 \end{align}
@@ -128,10 +136,160 @@ Therefore,
 \end{proof}
 
 \begin{remarks}
-In Theorem \ref{probguarantee}, the probability of the guarantee gets lower as the depth $d$ of the recursion in which a partition is built gets deeper, but in ideal partitioning, the guarantee of the estimate of the partition itself gets better as $L_p$, $A_P(i)$, and $B_P(i)$ are reduced.
+  The probability of the guarantee gets lower as the depth $d$ of the recursion in which a partition is built gets deeper, but in ideal partitioning, the guarantee of the estimate of the partition itself gets better as $L_p$, $A_p(i)$, and $B_p(i)$ are reduced.
 \end{remarks}
 
 
 \section{Heavy-hitter Edge Queries}
-\subsection{Description}
-\subsection{Analysis}
+\subsubsection{Description}
+Obtaining edges with frequencies at least $F$ in the graph stream is accomplished by first obtaining a set of edges with frequencies at least $F$ from each partition in the gMatrix and then taking the union of each of them.
+
+\subsubsection{Analysis}
+
+\begin{theorem}
+Let $(i,j)$ be an edge and $p$ be the partition associated with $i$. Let $Q(i,j)$ be its actual frequency, and $\overline{Q(i,j)}$ be its estimated frequency according to partition $p$. Let $L_p$ be the total frequency of edges received so far in the arbitrary partition, i.e. total frequency of edges $(u,v)$ such that $u$ is associated with $p$. Let $A_p(j)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $v=j$. Let $B_p(i)$ be the sum of the frequencies of edges $(u,v)$ on $p$ such that $u=i$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+\[
+P(Q(i,j) \geq F) \geq 1-(\frac{3\cdot2^d(L_p+h\cdot A_p(j)) + 3\cdot h\cdot B_p(i)}{h^2\cdot (\overline{Q(i,j)}-F)})^w
+\]
+\end{theorem}
+
+\begin{proof}
+Note that if the number of spurious edges is at most $(\overline{Q(i,j)} - F)$, the true frequency $Q(i,j)$ is at least $F$, so by obtaining a lower bound for the probability of the former, we obtain a lower bound for the probability of the latter as well.
+
+To obtain a lower bound for the probability that the number of spurious edges is at most $(\overline{Q(i,j)} - F)$, we consider all possible cases of spurious edges.
+
+The first possible case of spurious edges $(u,v)$ are those for which $u \neq i$ and $v \neq j$. Any of such edges are equally likely to be mapped into any cell in $p$, and the probability to be mapped into any particular cell is $\frac{1}{h \cdot \frac{h}{2^d}} = \frac{2^d}{h^2}$. Let $X_k$ be a random variable that represents the number of such spurious edges that are mapped into $(g_k(i),g_k(j),k)$. Therefore, $E[X_k] = \frac{2^dL_p}{h^2}$. Then, by Markov's inequality,
+
+\begin{equation} \label{hh1}
+P(X_k \geq \frac{\overline{Q(i,j)}-F}{3}) \leq \frac{E[X_k]}{\frac{\overline{Q(i,j)}-F}{3}} = \frac{3\cdot2^dL_p}{h^2(\overline{Q(i,j)}-F)}
+\end{equation}
+
+The second possible case of spurious edges $(u,v)$ are those for which $u \neq i$ but $v=j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$. Let $Y_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Y_k] = \frac{2^dA_p(j)}{h}$. By Markov's inequality,
+
+\begin{equation} \label{hh2}
+P(Y_k \geq \frac{\overline{Q(i,j)}-F}{3}) \leq \frac{E[Y_k]}{\frac{\overline{Q(i,j)}-F}{3}} = \frac{3\cdot2^dA_p(j)}{h(\overline{Q(i,j)}-F)}
+\end{equation}
+
+The third possible case of spurious edges $(u,v)$ are those for which $u=i$ but $v \neq j$. The probability that any of such edges to be mapped into $(g_k(i),g_k(j),k)$ in $p$ is $\frac{1}{h}$. Let $Z_k$ be a random variable representing the number of such spurious edges. Therefore, $E[Z_k] = \frac{B_p(i)}{h}$. By Markov's inequality,
+
+\begin{equation} \label{hh3}
+P(Z_k \geq \frac{\overline{Q(i,j)}-F}{3}) \leq \frac{E[Z_k]}{\frac{\overline{Q(i,j)}-F}{3}} = \frac{3\cdot B_p(i)}{h(\overline{Q(i,j)}-F)}
+\end{equation}
+
+Combining inequations \ref{hh1}, \ref{hh2}, \ref{hh3},
+\begin{equation}
+  P(X_k + Y_k + Z_k \geq \overline{Q(i,j)}-F) \leq \frac{3\cdot2^d(L_p+h\cdot A_p(j)) + 3\cdot h\cdot B_p(i)}{h^2\cdot (\overline{Q(i,j)}-F)}
+\end{equation}
+
+Therefore,
+\begin{align}
+\begin{split}
+&  P(Q(i,j) \geq F)
+\\  &= 1 - \prod _{k=1}^{w}P(X_k + Y_k + Z_k \geq \overline{Q(i,j)}-F)
+\\  &\geq 1-(\frac{3\cdot2^d(L_p+h\cdot A_p(j)) + 3\cdot h\cdot B_p(i)}{h^2\cdot (\overline{Q(i,j)}-F)})^w
+\end{split}
+\end{align}
+
+\end{proof}
+
+\section{Node Aggregate-Frequency Queries}
+
+The queries ask for the sum of frequencies of all edges incoming to / outgoing from a node $i$. Due to partitioning based on source nodes, source-node aggregate-frequency queries and destination-node aggregate-frequency queries are computed differently.
+
+\subsection{Source-Node Aggregate-Frequency Queries}
+
+\subsubsection{Description}
+The task of finding the aggregate frequency of a source node $i$ is broken down to:
+
+\begin{enumerate}
+\item Finding the associated partition $p$ of $i$
+\item Finding the aggregate frequency of the source node $i$ at the partition $p$
+\end{enumerate}
+
+\subsubsection{Analysis}
+
+\begin{theorem}
+Let $(i,j)$ be an edge and $p$ be the partition associated with $i$. Let $Q_{agg}^{+}(i)$ be the true aggregate-frequency of source-node $i$, and $\overline{Q_{agg}^{+}(i)}$ be its estimated aggregate-frequency. Let $p$ be a partition associated with $i$ and $L_p$ be the total frequency of edges received so far on $p$. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+\[
+P(Q_{agg}^{+}(i) \leq \overline{Q_{agg}^{+}(i)} \leq Q_{agg}^{+}(i) + L_p \cdot \epsilon) \geq 1-(\frac{2^d}{h\cdot\epsilon})^w
+\]
+\end{theorem}
+
+\begin{proof}
+We note that $P(Q_{agg}^{+}(i) \leq \overline{Q_{agg}^{+}(i)}) = 1$ since $\overline{Q_{agg}^{+}(i)}$ is always an overestimate. We remain to show that
+\[
+P(\overline{Q_{agg}^{+}(i)} \leq Q_{agg}^{+}(i) + L_p \cdot \epsilon) \geq 1-(\frac{2^d}{h\cdot\epsilon})^w
+\]
+In any arbitrary partition $p$, the probability for a spurious edge $(u,v)$, where $u \neq i$ and $u$ is associated with $p$, to be mapped onto $(g_k(i),\cdot,k)$ is $\frac{1}{\frac{h}{2^d}} = \frac{2^d}{h}$, so the expected number of spurious edges that are mapped into $(g_k(i),\cdot,k)$ is $\frac{2^dL_p}{h}$. Let $R_k$ be the random variable that represents the number of such spurious edges for the $k^{th}$ hash function. By Markov's inequality,
+
+\begin{equation} \label{agg21}
+  P(R_k \geq L_p \epsilon) \leq \frac{E[R_k]}{L_p \epsilon} = \frac{2^d}{h\epsilon}
+\end{equation}
+
+Therefore,
+\begin{align}
+\begin{split}
+&  P(\overline{Q_{agg}^{+}(i)} \leq Q_{agg}^{+}(i) + L_p \cdot \epsilon)
+\\  &= 1 - \prod _{k=1}^{w}P(R_k \geq L_p \cdot \epsilon)
+\\  &\geq 1-(\frac{2^d}{h\cdot\epsilon})^w
+\end{split}
+\end{align}
+
+\end{proof}
+
+\begin{remarks}
+As the depth $d$ of the recursion in which the partition is built increases, the probability of the accuracy guarantee decreases, but in ideal partitioning, the accuracy guarantee itself gets better as $L_p$ gets reduced.
+\end{remarks}
+
+\subsection{Destination-Node Aggregate-Frequency Queries}
+
+\subsubsection{Description}
+The task of finding the aggregate-frequency of a destination node $j$ is broken down to:
+
+\begin{enumerate}
+\item Computing the aggregate-frequency of the destination-node $j$ in each partition $p$
+\item Computing the sum of all of the computed destination-node aggregate-frequencies together
+\end{enumerate}
+
+\subsubsection{Analysis}
+\begin{theorem}
+\label{agg2}
+  Let $Q_{agg}^{-}(j)$ be the true aggregate-frequency of destination-node $j$, and $\overline{Q_{agg}^{-}(j)}$ be the estimated aggregate-frequency. Let $L$ be the total frequency of edges received so far. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
+  
+  \[
+P(Q_{agg}^{-}(j) \leq \overline{Q_{agg}^{-}(j)} \leq Q_{agg}^{-}(j) + L \cdot \epsilon) \geq 1-(\frac{n}{h\cdot\epsilon})^w
+\]
+
+\end{theorem}
+
+\begin{proof}
+We note that $P(Q_{agg}^{-}(j) \leq \overline{Q_{agg}^{-}(j)}) = 1$ since $\overline{Q_{agg}^{-}(j)}$ is always an overestimate. We remain to show that
+\[
+P(\overline{Q_{agg}^{-}(j)} \leq Q_{agg}^{-}(j) + L \cdot \epsilon) \geq 1-(\frac{n}{h\cdot\epsilon})^w
+\]
+Let $\{p_1,..,p_n\}$ be the set of all partitions in the gMatrix and $L_i$ be the total frequency of edges in $p_i$. In any partition $p_i$, the probability for a spurious edge $(u,v)$, $v \neq j$ to be mapped onto $(\cdot,g_k(j),k)$ is $\frac{1}{h}$, so the expected number of spurious edges that are mapped into $(\cdot,g_k(j),k)$ is $\frac{L_i}{h}$. Let $R_k^i$ be the random variable that represents the number of spurious edges in $p_i$ for the $k^{th}$ hash function. By Markov's inequality,
+
+\begin{equation} \label{agg21}
+  P(R_k^i \geq L_i \epsilon) \leq \frac{E[R_k^i]}{L_i \epsilon} = \frac{1}{h\epsilon}
+\end{equation}
+
+Let $R_k = \sum_{i=1}^{n} R_k^i$. Combining inequation \ref{agg21} for all $i \in \{1..n\}$, 
+
+\begin{equation} \label{agg22}
+ P(R_k \geq L\epsilon) \leq \frac{n}{h\epsilon}
+\end{equation}
+
+Therefore,
+\begin{align}
+\begin{split}
+&  P(\overline{Q_{agg}^{-}(j)} \leq Q_{agg}^{-}(j) + L \cdot \epsilon)
+\\  &= 1 - \prod _{k=1}^{w}P(R_k \geq L \cdot \epsilon)
+\\  &\geq 1-(\frac{n}{h\cdot\epsilon})^w
+\end{split}
+\end{align}
+
+\end{proof}
+
+\begin{remarks}
+The probability of the guarantee gets lower as the number of partitions increases, and the guarantee itself never gets any better with partitioning.
+\end{remarks}
