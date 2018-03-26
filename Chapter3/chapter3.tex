@@ -19,7 +19,7 @@ The code used for all of the experiments are implemented in C++. All experiments
 We note that some of the variables mentioned in the earlier chapter are made to be constants for the purpose of the project. These include:
 
 \begin{itemize}
-\item The data sample used for partitioning is the same in all experiments, i.e. they are only randomly sampled once using Reservoir Sampling. All of the samples' size are 5\% of the corresponding dataset size. They are not regenerated on different runtimes of the experiements.
+\item The data sample used for partitioning is the same in all experiments, i.e. they are only randomly sampled once using Reservoir Sampling \cite{reservoir}. All of the samples' size are 5\% of the corresponding dataset size. They are not regenerated on different runtimes of the experiments.
 \item Statistical variance threshold for filtering source nodes to be used for the partitioning algorithm is set to 100 for all experiments.
 \item For outlier ratio estimation, data sample is split by 90:10 ratio for all experiments.
 \item For the first terminating condition of the sketch partitioning algorithm, the minimum number of rows $w_0$ for any partition is set to 400 in all experiments.

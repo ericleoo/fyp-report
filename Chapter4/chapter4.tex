@@ -2,7 +2,7 @@
 %*******************************************************************************
 %****************************** Third Chapter **********************************
 %*******************************************************************************
-\chapter{Conclusion}
+\chapter{Conclusions}
 
 % **************************** Define Graphics Path **************************
 \ifpdf
@@ -11,4 +11,16 @@
 \graphicspath{{Chapter4/Figs/Vector/}{Chapter4/Figs/}}
 \fi
 
+\section{Conclusion}
 
+To summarize all contributions made so far, we have proposed optimizations to the partitioning method, analyzes how the method impacts how the gMatrix sketch answers various query types and how the performance and accuracy guarantees change, and conducted experiments on some datasets.
+
+The results show that the gSketch partitioning method generally improves gMatrix accuracy on query types such as edge frequency and source-node aggregate frequency estimations. In addition, such queries are performed with the same time complexity too.
+
+However, the gSketch partitioning method causes gMatrix to be less accurate and to be slower on some query types such as the destination-node aggregate frequency estimation and the heavy-hitter edge queries.
+
+Finally, we note that whether the partitioning method is beneficial for use depends on the intended use-case.
+
+\section{Possible Improvements}
+
+Experiments on how the partitioning method affects gMatrix on other query types supported by the gMatrix are yet to be conducted. In addition, experiments on the effects of varying the partitioning parameters on the gMatrix are yet to be conducted too. Finally, experiments on other datasets may produce new insights.

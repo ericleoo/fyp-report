@@ -15,20 +15,15 @@
 %********************************** %First Section  **************************************
 \section{Background} %Section - 1.1 
 
-Graphs are naturally used to model data that consists of entities and the relationships between them, with entities represented as nodes and the relationships between a pair of entities represented as edges. Common applications include modelling communication networks, social networks, and the Web. In such applications, graph data is often available as a massive input stream of edges, so computing exact properties of the graph is often not computationally feasible. Thus, sketches, which summarize general data streams, are often used to approximate queries with a particular guaranteed accuracy.
+Graphs are naturally used to model data that consists of entities and the relationships between them, with entities represented as nodes and the relationships between a pair of entities represented as edges. Common applications include modelling communication networks, social networks, and the Web. In such applications, graph data is often available as a massive rapid input stream of edges, so computing exact properties of the graph is often not computationally feasible. Thus, sketches, which summarize general data streams, are often used to approximate queries with a particular guaranteed accuracy.
 
+Previous work \cite{DBLP} has introduced a way to utilize the Count-min sketch \cite{cormode2005improved}, a general data-stream sketch for approximating frequency counts, to summarize graph streams. Furthermore, it \cite{DBLP} has introduced the gSketch, which is a partitioning method that exploits typical local structural properties of real world graph streams by building multiple localized Count-min sketches \cite{cormode2005improved} for answering graph stream edge-frequency estimation. It has been shown that the partitioning method is able to improve overall accuracy of the Count-min sketch when tested on several large graph datasets.
 
-%********************************** %Second Section  *************************************
-\section{Objectives} %Section - 1.2
+A more recent work \cite{khan} has introduced the gMatrix, which is a sketch that generalizes the Count-min sketch for graph streams and specializes only on graph streams. The gMatrix has been shown to be able to handle various queries involving the structural properties of the underlying graph, which is an advantage over the Count-min sketch \cite{DBLP}.
 
-The objective of this work is to improve gMatrix's \cite{khan} accuracy using the idea of partitioning given data sample \cite{DBLP}. Experiments are to be carried on multiple dat
+%********************************** %Third Section  *************************************
+\section{Objectives} %Section - 1.3
 
-%********************************** % Third Section  *************************************
-\section{Relevant Literatures}  %Section - 1.3 
-\label{section1.3}
+The gSketch partitioning method improves the Count-Min sketch significantly. An idea is to implement the method into the gMatrix \cite{khan} to improve its accuracy. However, there are no previous works that have shown if it really is the case. In addition, since the main feature of the gMatrix sketch is its support for various different query types, we want to know whether partitioning can bring improvements onto query types other than edge frequency queries.
 
-Previous work \cite{DBLP} has introduced a way to utilize the Count-min sketch \cite{cormode2005improved}, which is commonly used to approximate the frequency of events in a general data stream, to approximate the frequency of edges in a graph stream. Furthermore, it \cite{DBLP} has introduced the gSketch, which is a partitioning scheme that exploits typical local structural properties within real world graph datasets by building multiple localized Count-min sketches \cite{cormode2005improved} to summarize a graph stream. It has been shown that the partitioning scheme is able to improve overall accuracy when tested on several large graph datasets.
-
-A recent work \cite{khan} has introduced the gMatrix, which is a sketch that generalizes the Count-min sketch for graph streams. The gMatrix has been shown to be able to handle various queries involving the structural properties of the underlying graph, which is an advantage over the Count-min sketch \cite{DBLP}.
-
-Applying a partitioning scheme identical to the gSketch \cite{DBLP} into the gMatrix \cite{khan} may improve its overall accuracy. However, there are no previous works that have shown if it really is the case and the extent of the improvement.
+As there are no previous works that have attempted to analyze the effects of the application of the gSketch partitioning method onto the gMatrix, the project is conducted with the objective of analyzing how the gSketch\cite{DBLP} partitioning method affects the gMatrix\cite{khan} with the goal of improving its accuracy on answering various query types.

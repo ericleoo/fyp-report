@@ -14,8 +14,8 @@
 
 \section{Preliminaries}
 
-\subsection{Count-Min}
-The Count-Min\cite{cormode2005improved} sketch is a data-stream sketch that is used to approximate frequency counts of items in a data stream.
+\subsection{Count-Min Sketch}
+The Count-Min \cite{cormode2005improved} sketch is a data-stream sketch that is used to approximate frequency counts of items in a data stream.
 
 It consists of a 2D array. In a $h \times w$ sized Count-Min sketch, it consists of $w$ many hash functions that each maps onto $[0,h-1]$.
 
@@ -23,14 +23,14 @@ To store the frequency of an item $x$, it first maps $x$ onto $w$ different valu
 
 Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column be denoted by $f(i,j)$. Querying the frequency estimate of an item $x$ is accomplished by finding $min\{f(g_k(x),k)|k \in \{1..w\}\}$.
 
-\subsection{gMatrix}
-The gMatrix\cite{khan} is a sketch that is similar to the Count-Min sketch, except that it consists of a 3D array instead of a 2D one and specializes on graph streams.
+\subsection{gMatrix Sketch}
+The gMatrix \cite{khan} is a sketch that is similar to the Count-Min sketch, except that it consists of a 3D array instead of a 2D one and specializes on graph streams.
 
 In a $h \times h \times w$ sized gMatrix, to store the frequency of an edge $(i,j)$, it first maps $i$ and $j$ onto $w$ different values $g_k(i)$ and $g_k(j)$ using each hash function $g_k, k \in \{1..w\}$. Then, the entry at the $g_k(i)^{th}$ row, $g_k(j)^{th}$ column, and $k^{th}$ layer is incremented by the frequency of the edge $(i,j)$.
 
 Let the entry of the sketch at the $i^{th}$ row, $j^{th}$ column, and $k^{th}$ layer be denoted by $f(i,j,k)$. Querying the frequency estimate of an edge $(i,j)$ is accomplished by finding $min\{f(g_k(i),g_k(j),k)|k \in \{1..w\}\}$.
 
-\subsection{gSketch}
+\subsection{gSketch Partitioning Method}
 \begin{algorithm}
 \caption{Sketch-Partitioning-On-CountMin \cite{DBLP} (Data Sample: $D$)}\label{cm}
 \begin{algorithmic}[1]
@@ -60,7 +60,7 @@ active node;
 
 \end{algorithmic}
 \end{algorithm}
-The gSketch\cite{DBLP} is a partitioning method performed onto a graph-stream-sketch prior to being populated with the stream. The partitioning method is based on the source vertex set of a sample stream. The method, as shown in Algorithm \ref{cm} \cite{DBLP}, is recursive and on each step of the recursion, it first sorts the sample in order of non-decreasing average edge frequency, which is estimated by the ratio of vertex aggregate-frequency to its degree $\frac{\tilde{f_v(m)}}{\tilde{d(m)}}$, and then selects a pivot on which the sorted list is to be partitioned into two by minimizing an objective function,
+The gSketch \cite{DBLP} is a partitioning method performed onto a graph-stream sketch prior to being populated with the stream. The partitioning method is based on the source vertex set of a sample stream. The method, as shown in Algorithm \ref{cm} \cite{DBLP}, is recursive and on each step of the recursion, it first sorts the sample in order of non-decreasing average edge frequency, which is estimated by the ratio of vertex aggregate-frequency to its degree $\frac{\tilde{f_v(m)}}{\tilde{d(m)}}$, and then selects a pivot on which the sorted list is to be partitioned into two by minimizing an objective function,
 \begin{equation}
 \label{objective}
 E = \sum_{m \in S_1} \frac{\tilde{d}(m) \cdot \tilde{F}(S_1)}{\tilde{f}_v(m) / \tilde{d}(m)} + \sum_{m \in S_2} \frac{\tilde{d}(m) \cdot \tilde{F}(S_2)}{\tilde{f}_v(m) / \tilde{d}(m)}
@@ -138,6 +138,12 @@ Since there is only one partition associated with each source vertex, to retriev
   \item Find $min\{V_P(g_k(i),g_k(j),k)|\forall k \in \{1..w\}\}$, where $V_P$ is the value of the cell in the partition $p$. 
 \end{enumerate}
 
+The number of operations taken by the first step depends on implementation. If a hash-table that maps each source-vertex onto its allocated partition is to be built during the sketch partitioning algorithm, the first step takes $\mathcal{O}(1)$ operations in average. For worst-case time complexity analysis, if a balanced binary search tree is to be used instead of the hash-table, the first step takes $\mathcal{O}(lg(|V^{+}|))$ operations, where $V^{+}$ is the set of source verticesnodes from the data sample.
+
+The second step takes $\mathcal{O}(w)$ operations.
+
+Thus, the worst-case time complexity is $\mathcal{O}(lg(|V^{+}|) + w)$.
+
 Since obtaining the frequency estimate of an arbitrary edge only depends on the partition containing the edge, we observe how each partition answers the query.
 
 Let $S$ be a gMatrix of size $h\times h\times w$. Suppose the partitioning step has been performed already. Note that any of the produced partitions will have number of rows equal to $\frac{h}{2^d}$ where $d$ is the depth of the recursion in which the partition is built. Let $p$ be an arbitrary partition. The size of $p$ is $\frac{h}{2^d}\times h\times w$.
@@ -201,7 +207,18 @@ Therefore,
 
 
 \subsection{Heavy-hitter Edge Query Estimation}
-Obtaining edges with frequencies at least $F$ in the graph stream is accomplished by first obtaining a set of edges with frequencies at least $F$ from each partition in the gMatrix, which can be accomplished as described in \cite{khan}, and then taking the union of each of the obtained sets. As in \cite{khan}, the resulting set of heavy-hitter edges may consist of edges that are not actually heavy-hitter edges, but the set of all true heavy-hitter edges is always a subset, i.e. there are no missing true heavy-hitter edges in the resulting set.
+The query asks for retrieving the set of edges in the graph stream with frequencies at least $F$. The query is accomplished by the following steps:
+
+\begin{enumerate}
+\item obtain the set of edges with frequencies at least $F$ from each partition in the gMatrix, which can be accomplished as described in \cite{khan}
+\item compute the union of each of the obtained sets.
+\end{enumerate}
+
+Without partitioning, we only need to perform step 1 once, but with partitioning, we need to perform it $n$ times, where $n$ is the number of partitions, so it is already at least $n$ times slower than without partitioning in the worst case. Thus, the first step takes $\mathcal{O}(nh^2w + 2 n \left \lfloor{P/h} \right \rfloor log P \prod_{k=1}^wc_k)$ operations \cite{khan}, where $c_k$ is the number of cells in the $k^{th}$ layer whose entries are at least $F$, and $P$ is a gMatrix parameter for generating hash functions and is a prime number larger than the maximum number of nodes in the graph stream.
+
+For the second step, if the partitioning algorithm produces only one partition, there are no union operations performed. Otherwise, the second step takes $\Omega(|H|)$ operations, where $H$ denotes the set of true heavy-hitter edges in the graph stream.
+
+As in \cite{khan}, the resulting set of heavy-hitter edges may consist of edges that are not actually heavy-hitter edges, but the set of all true heavy-hitter edges is always a subset, i.e. there are no missing true heavy-hitter edges in the resulting set.
 
 We observe the probability that an edge $(i,j)$ is correctly classified as a heavy-hitter edge in each partition.
 
@@ -257,13 +274,20 @@ The queries ask for the sum of frequencies of all edges incoming to / outgoing f
 
 \subsubsection{Source-Node Aggregate-Frequency Query Estimation}
 
-The task of finding the aggregate frequency of a source node $i$ is broken down to:
+The task of finding the aggregate frequency of a source node $i$ is broken down to the following steps:
 
 \begin{enumerate}
 \item Finding the associated partition $p$ of $i$.
 \item Finding the aggregate frequency of the source node $i$ at the partition $p$, which can be accomplished as described in \cite{khan}.
 \end{enumerate}
 
+The number of operations taken by the first step depends on implementation. If a hash-table that maps each source-vertex onto its allocated partition is to be built during the sketch partitioning algorithm, the first step takes $\mathcal{O}(1)$ operations in average. For worst-case time complexity analysis, if a balanced binary search tree is to be used instead of the hash-table, the first step takes $\mathcal{O}(lg(|V^{+}|))$ operations, where $V^{+}$ is the set of source verticesnodes from the data sample.
+
+The second one takes $\mathcal{O}(hw)$ operations, so the query can be answered in $\mathcal{O}(hw)$ operations.
+
+Thus, the overall time complexity is $\mathcal{O}(lg(|V^{+}|) + hw)$.
+
+Next, we observe how partitioning affects the probabilistic accuracy guarantee.
 
 \begin{theorem}
 \label{thm:agg1}
@@ -308,6 +332,9 @@ The task of finding the aggregate-frequency of a destination node $j$ is broken 
 \item Computing the sum of all of the computed destination-node aggregate-frequencies together
 \end{enumerate}
 
+The first step implies that the time complexity for answering the query is at least $n$ times slower in the worst case than it is without partitioning, where $n$ is the number of partitions after performing the sketch partitioning algorithm. The second step only takes $\mathcal{O}(n)$ operations. Thus, the worst-case time complexity to answer the query is $\mathcal{O}(nhw)$.
+
+Next, we observe how partitioning affects the probabilistic accuracy guarantee.
 \begin{theorem}
 \label{thm:agg2}
 Let $Q_{agg}^{-}(j)$ be the true aggregate-frequency of destination-node $j$, and $\overline{Q_{agg}^{-}(j)}$ be the estimated aggregate-frequency. Let $L$ be the total frequency of edges received so far. Let $\epsilon \in (0,1)$ be a very small fraction. Then,
